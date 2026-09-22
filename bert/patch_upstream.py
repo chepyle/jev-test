@@ -4,7 +4,10 @@
    `lex_glue` loading script, so BERT sees exactly the rows Jev was scored on.
 2. Save raw test logits (test_logits.npy) next to upstream's test_predictions.csv, so paired
    analysis can use probabilities, not only thresholded labels.
-3. CaseHOLD: replace the removed `trainer.train(model_path=...)` with checkpoint resume.
+3. CaseHOLD: replace the removed `trainer.train(model_path=...)` with checkpoint resume, and
+   drop its non-empty-output-dir guard (the other scripts already allow resuming).
+5. ECtHR/SCOTUS/UNFAIR-ToS: upstream writes test_predictions.csv from `predictions[0]`,
+   assuming the tuple that transformers 4.9 returned; 4.44 returns a bare array, so accept both.
 4. ECtHR/SCOTUS: load BERT with eager attention. Upstream's HierarchicalBert encodes
    all-padding segments; transformers >= 4.41 defaults BERT to SDPA, which returns NaN for
    a fully masked segment and poisons every logit (verified: `modal run
@@ -50,6 +53,15 @@ for name in ("ecthr", "scotus"):
         count=1,
     )
 
+for name in ("ecthr", "scotus", "unfair_tos"):
+    patch(
+        experiments / f"{name}.py",
+        "for index, pred_list in enumerate(predictions[0]):",
+        "for index, pred_list in enumerate("
+        "predictions[0] if isinstance(predictions, tuple) else predictions):",
+        count=1,
+    )
+
 helpers = experiments / "casehold_helpers.py"
 patch(
     helpers,
@@ -72,6 +84,13 @@ patch(
     "trainer.train(resume_from_checkpoint=get_last_checkpoint(training_args.output_dir) "
     "if os.path.isdir(training_args.output_dir) else None)",
     regex=True,
+)
+patch(
+    case_hold,
+    '\t\traise ValueError(\n\t\t\tf"Output directory ({training_args.output_dir}) already exists '
+    'and is not empty. Use --overwrite_output_dir to overcome."\n\t\t)',
+    "\t\tpass  # resume: trainer.train continues from the last checkpoint",
+    count=1,
 )
 text = case_hold.read_text()
 if "get_last_checkpoint" not in text.split("def main")[0]:

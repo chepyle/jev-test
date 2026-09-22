@@ -124,6 +124,18 @@ def train(task: str, seed: int = 1) -> dict:
     if os.path.exists(done):
         print(f"{task} seed {seed} already done", flush=True)
         return json.load(open(done))
+    started = time.time()
+    predicted = all(
+        os.path.exists(os.path.join(output_dir, f))
+        for f in ("test_logits.npy", "predict_results.json")
+    )
+    if predicted:
+        # Training and test prediction finished; only a post-prediction step failed.
+        # Never resume here: resuming a finished run would train extra epochs.
+        return finalize(task, seed, output_dir, started)
+    if os.path.exists(os.path.join(output_dir, "train_results.json")):
+        # Training finished without test logits. Stop instead of retrying into more epochs.
+        return {"task": task, "seed": seed, "error": "trained but not predicted; inspect"}
     prune_incomplete_checkpoints(output_dir)
     workdir = f"/vol/work/{task}"  # CaseHOLD caches features relative to cwd
     os.makedirs(workdir, exist_ok=True)
@@ -131,12 +143,20 @@ def train(task: str, seed: int = 1) -> dict:
         link = os.path.join(workdir, entry)
         if not os.path.exists(link):
             os.symlink(f"/lex-glue/{entry}", link)
-    started = time.time()
     code = run_committing(upstream_args(task, seed, output_dir), workdir)
     if code != 0:
         raise RuntimeError(f"{task} seed {seed}: upstream script exited {code}")
     if not os.path.exists(os.path.join(output_dir, "test_logits.npy")):
         raise RuntimeError(f"{task} seed {seed}: finished without test_logits.npy")
+    return finalize(task, seed, output_dir, started)
+
+
+def finalize(task: str, seed: int, output_dir: str, started: float) -> dict:
+    """Record DONE.json and drop epoch checkpoints (as upstream does after prediction)."""
+    for name in os.listdir(output_dir):
+        if name.startswith("checkpoint-"):
+            shutil.rmtree(os.path.join(output_dir, name))
+    done = os.path.join(output_dir, "DONE.json")
     result = {"task": task, "seed": seed, "gpu": GPU, "wall_seconds": time.time() - started}
     for name in ("eval_results.json", "predict_results.json", "train_results.json"):
         path = os.path.join(output_dir, name)
