@@ -184,3 +184,82 @@ Findings:
 - **Single seed.** BERT's seed-to-seed spread is not measured here, so paired intervals
   cover test-sample variation only. Differences under about 1 F1 point (the gap between
   this seed and the published 5-seed means) should not be read as model differences.
+
+## Third model: GPT-5.6 Luna (zero-shot, chat protocol)
+
+- Model: `openai/gpt-5.6-luna`, run 2026-09-22, 23,607 / 23,607 scored, 0 failed
+- Cost: $16.45 reported by OpenRouter (projection from n=50/task: $16.48); 41.5M input and
+  5.5M output tokens. One 403 (key weekly limit) stopped the run at 92.3%; `--resume
+  --retry-failed` completed it with 1,813 pending and 21,794 checkpointed (1 extra attempt).
+- Protocol: `--protocol chat`, not System One. The System One endpoint rejects the model
+  ("Model openai/gpt-5.6-luna does not exist"; it serves TypeSafe models only). Same
+  instructions, label descriptions, 48,000-character truncation, and gold isolation, but the
+  answer is JSON generated under a strict schema, and multi-label tasks return a label set:
+  **no probabilities, no threshold, so no ROC-AUC or calibration for Luna.** Part of any
+  Jev-Luna difference may come from the protocol rather than the model.
+
+### F1, all three models
+
+| Task | Luna μ-F1 [95% CI] | Jev μ-F1 | BERT μ-F1 | Luna m-F1 | Jev m-F1 | BERT m-F1 |
+|---|---|---:|---:|---:|---:|---:|
+| ECtHR A | **78.9** [76.9, 80.8] | 73.0 | 70.3 | **75.4** | 71.4 | 61.9 |
+| ECtHR B | 78.8 [77.4, 80.1] | 75.4 | 78.6 | 73.3 | 72.6 | 72.5 |
+| SCOTUS | 68.3 [65.9, 70.5] | **72.6** | 67.2 | 59.7 | 62.1 | 60.7 |
+| EUR-LEX | 42.9 [42.4, 43.4] | 39.1 | **71.6** | 39.3 | 37.0 | **56.5** |
+| LEDGAR | 74.7 [73.8, 75.5] | 75.3 | **88.0** | 62.2 | 63.3 | **82.4** |
+| UNFAIR-ToS | 78.8 [76.9, 80.7] | 76.4 | **95.2** | 60.9 | 54.4 | **80.0** |
+| CaseHOLD | 76.8 [75.5, 78.1] | 77.3 | 70.8 | 76.8 | 77.3 | 70.8 |
+| Arithmetic mean | 71.3 | 69.9 | 77.4 | 63.9 | 62.6 | 69.3 |
+| Harmonic mean | 68.4 | 66.3 | 76.3 | 61.1 | 59.3 | 68.0 |
+
+BERT is the seed-1 reproduction above. Bold marks a best score separated from the others by
+the paired tests below.
+
+### Paired differences (1000-resample paired bootstrap, seed 0; McNemar on exact label sets)
+
+Jev − Luna (`analysis/three-way.json`):
+
+| Task | Δ μ-F1 [95% CI] | Δ m-F1 [95% CI] | Only Jev / only Luna exact | McNemar p | Inter-model κ |
+|---|---|---|---:|---:|---:|
+| ECtHR A | −5.9 [−7.4, −4.2] | −4.1 [−7.4, −0.5] | 68 / 204 | 6e-17 | 0.82 |
+| ECtHR B | −3.4 [−4.5, −2.2] | −0.7 [−3.9, +3.2] | 84 / 159 | 2e-6 | 0.84 |
+| SCOTUS | +4.3 [+2.4, +6.3] | +2.4 [−0.7, +5.4] | 133 / 73 | 4e-5 | 0.77 |
+| EUR-LEX | −3.9 [−4.3, −3.4] | −2.3 [−2.9, −1.6] | 0 / 10 | 0.002 | 0.63 |
+| LEDGAR | +0.7 [+0.1, +1.3] | +1.1 [+0.1, +2.1] | 508 / 441 | 0.03 | 0.86 |
+| UNFAIR-ToS | −2.4 [−4.0, −0.8] | −6.6 [−10.1, −3.4] | 68 / 115 | 6e-4 | 0.78 |
+| CaseHOLD | +0.5 [−0.9, +1.9] | +0.5 [−0.9, +1.9] | 315 / 296 | 0.47 | 0.74 |
+
+Luna − BERT (`analysis/luna-vs-bert.json`):
+
+| Task | Δ μ-F1 [95% CI] | Δ m-F1 [95% CI] | Only Luna / only BERT exact | McNemar p | Inter-model κ |
+|---|---|---|---:|---:|---:|
+| ECtHR A | +8.6 [+6.4, +10.8] | +13.6 [+9.7, +17.6] | 206 / 116 | 6e-7 | 0.73 |
+| ECtHR B | +0.2 [−1.6, +1.9] | +0.7 [−3.9, +5.4] | 145 / 207 | 0.001 | 0.73 |
+| SCOTUS | +1.1 [−1.9, +4.3] | −1.0 [−6.4, +3.4] | 251 / 236 | 0.53 | 0.52 |
+| EUR-LEX | −28.6 [−29.3, −27.9] | −17.2 [−18.3, −15.9] | 5 / 296 | 1e-80 | 0.38 |
+| LEDGAR | −13.3 [−14.2, −12.4] | −20.2 [−21.7, −18.6] | 356 / 1688 | 9e-207 | 0.76 |
+| UNFAIR-ToS | −16.4 [−18.5, −14.3] | −19.1 [−24.3, −13.6] | 40 / 310 | 7e-53 | 0.46 |
+| CaseHOLD | +5.9 [+4.1, +7.6] | +5.9 [+4.1, +7.6] | 599 / 385 | 9e-12 | 0.58 |
+
+Agreement with gold, Luna: macro label κ ECtHR A 0.761 [0.704, 0.800], ECtHR B 0.705
+[0.671, 0.732], EUR-LEX 0.370 [0.361, 0.377], UNFAIR-ToS 0.567 [0.520, 0.604]; Cohen's κ
+SCOTUS 0.630 [0.602, 0.656], LEDGAR 0.741 [0.733, 0.750], CaseHOLD 0.710 [0.694, 0.726].
+
+Findings:
+
+- **The two zero-shot models are close, and neither dominates.** Luna leads on ECtHR A
+  (+5.9 μ-F1), ECtHR B (+3.4), EUR-LEX (+3.9), and UNFAIR-ToS (+2.4). Jev leads on SCOTUS
+  (+4.3) and marginally on LEDGAR (+0.7, lower CI bound +0.1). CaseHOLD is a tie. Arithmetic
+  mean μ-F1 71.3 vs 69.9.
+- **They agree with each other more than either agrees with BERT** (Jev-Luna κ 0.63 to 0.86
+  vs 0.38 to 0.77 for either against BERT): the two zero-shot models make similar errors.
+- **Luna over-predicts less on multi-label tasks** (ECtHR A 1.44 labels per document vs Jev
+  1.58 and gold 1.09; EUR-LEX 5.97 vs 10.09 and gold 5.08), consistent with its gains there.
+  Jev's multi-label answers pass through the fixed 0.5 threshold; Luna chooses a set directly.
+- **Both zero-shot models trail fine-tuned BERT by 13 to 29 μ-F1 on EUR-LEX, LEDGAR, and
+  UNFAIR-ToS,** the tasks with many or rare labels, and both beat it on CaseHOLD.
+- **ECtHR B Luna vs BERT:** F1 ties (+0.2 [−1.6, +1.9]) but BERT gets more exact label sets
+  (207 vs 145, p=0.001).
+- The 350-example sample (50/task) run beforehand separated only ECtHR B; the full run
+  separates five of seven Jev-Luna pairs. Sample result kept in
+  `analysis/sample50-jev-vs-luna.json`.

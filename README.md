@@ -13,13 +13,18 @@ are involved.
 
 ## Results
 
-Full test run, `typesafe/jev-1.13-20260917`, zero-shot, 23,607/23,607 examples, $4.02:
-arithmetic-mean micro/macro-F1 **69.9 / 62.6**, against fine-tuned BERT 77.8 / 69.5 on the
-leaderboard. Compared with a reproduced BERT-base on the same test examples, Jev is ahead on
-CaseHOLD (+6.5 μ-F1), SCOTUS (+5.4), and ECtHR A (+2.7) and behind on ECtHR B, LEDGAR,
-UNFAIR-ToS, and EUR-LEX. On ECtHR A/B and UNFAIR-ToS it ranks labels better than
-BERT (macro ROC-AUC +0.015) but over-predicts at the fixed 0.5 threshold.
-[`RESULTS.md`](RESULTS.md) has intervals, kappa, calibration, paired tests, and caveats.
+Full test split (23,607 examples), zero-shot, micro-F1 arithmetic mean across the 7 tasks:
+
+| Model | Protocol | μ-F1 | m-F1 | Cost |
+|---|---|---:|---:|---:|
+| Jev (`typesafe/jev-1.13-20260917`) | System One | 69.9 | 62.6 | $4.02 |
+| GPT-5.6 Luna (`openai/gpt-5.6-luna`) | chat, JSON schema | 71.3 | 63.9 | $16.45 |
+| BERT-base, fine-tuned (reproduced, seed 1) | supervised | 77.4 | 69.3 | $21.58 GPU |
+
+The two zero-shot models are close: Luna is ahead on ECtHR A/B, EUR-LEX, and UNFAIR-ToS, Jev on
+SCOTUS and LEDGAR, and CaseHOLD is a tie. Both beat fine-tuned BERT on CaseHOLD and trail it by
+13 to 29 points on EUR-LEX, LEDGAR, and UNFAIR-ToS. [`RESULTS.md`](RESULTS.md) has per-task
+intervals, kappa, calibration, paired tests, and caveats, including the protocol difference.
 
 ## Quick start
 
@@ -127,6 +132,20 @@ uv run jev-bench prepare --tasks unfair_tos --split validation --limit 0 --outpu
 
 No claim is made about Jev's training-data overlap with this public benchmark. Publish
 the run settings, truncation counts, and model IDs alongside any accuracy comparison.
+
+## Other models (chat protocol)
+
+System One serves TypeSafe models only. To score another OpenRouter model on the same examples:
+
+```bash
+uv run jev-bench run --data data/full-test --output results/luna-full \
+  --model openai/gpt-5.6-luna --protocol chat --concurrency 12
+```
+
+`--protocol chat` asks the same questions (instructions, label descriptions, truncation) over
+`/chat/completions` with a strict JSON schema. The answer is generated text parsed as JSON;
+multi-label tasks return a label set, so there are no probabilities and `--threshold` does not
+apply. Refusals and malformed answers are recorded as errors, never as default predictions.
 
 ## Detailed analysis
 
