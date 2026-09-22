@@ -12,9 +12,18 @@ from pathlib import Path
 import httpx
 from filelock import FileLock
 
-from jev_test.client import InferenceError, SystemOneClient
+from jev_test.chat import CHAT_PROTOCOL_VERSION, build_chat_request, parse_chat_response
+from jev_test.client import (
+    CHAT_ENDPOINT,
+    DEFAULT_ENDPOINT,
+    ChatClient,
+    InferenceError,
+    SystemOneClient,
+)
 from jev_test.data import load_prepared
-from jev_test.questions import PROTOCOL_VERSION, build_request, parse_response
+from jev_test.questions import PROTOCOL_VERSION
+from jev_test.questions import build_request as systemone_request
+from jev_test.questions import parse_response as systemone_parse
 from jev_test.report import latest_records, resolved_models, write_report
 from jev_test.storage import append_jsonl, digest, file_digest, read_jsonl, write_json
 
@@ -27,6 +36,7 @@ def protocol_digest() -> str:
             for name in (
                 "tasks.py",
                 "questions.py",
+                "chat.py",
                 "client.py",
                 "metrics.py",
                 "runner.py",
@@ -50,8 +60,17 @@ async def run_benchmark(
     resume: bool = False,
     retry_failed: bool = False,
     dry_run: bool = False,
+    protocol: str = "systemone",
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> dict:
+    if protocol not in ("systemone", "chat"):
+        raise ValueError("protocol must be 'systemone' or 'chat'")
+    chat = protocol == "chat"
+    build_request, parse_response = (
+        (build_chat_request, parse_chat_response) if chat else (systemone_request, systemone_parse)
+    )
+    if chat and endpoint == DEFAULT_ENDPOINT:
+        endpoint = CHAT_ENDPOINT
     if not math.isfinite(threshold) or not 0 <= threshold <= 1:
         raise ValueError("threshold must be finite and in [0, 1]")
     if concurrency < 1 or retries < 0 or not math.isfinite(timeout) or timeout <= 0:
@@ -70,7 +89,8 @@ async def run_benchmark(
         "endpoint": endpoint,
         "threshold": threshold,
         "max_chars": max_chars,
-        "protocol_version": PROTOCOL_VERSION,
+        "protocol": protocol,
+        "protocol_version": CHAT_PROTOCOL_VERSION if chat else PROTOCOL_VERSION,
         "protocol_sha256": protocol_digest(),
         "data_sha256": digest(data_manifest),
     }
@@ -168,7 +188,8 @@ async def run_benchmark(
         async with httpx.AsyncClient(
             timeout=timeout, transport=transport, follow_redirects=False
         ) as http:
-            client = SystemOneClient(http, api_key, endpoint=endpoint, retries=retries)
+            factory = ChatClient if chat else SystemOneClient
+            client = factory(http, api_key, endpoint=endpoint, retries=retries)
 
             async def worker() -> None:
                 nonlocal completed

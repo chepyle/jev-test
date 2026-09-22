@@ -1,4 +1,4 @@
-"""Minimal client for OpenRouter's documented System One endpoint."""
+"""Minimal clients for OpenRouter's System One and chat-completions endpoints."""
 
 import asyncio
 import json
@@ -10,7 +10,10 @@ from email.utils import parsedate_to_datetime
 
 import httpx
 
+from jev_test.chat import normalize_usage
+
 DEFAULT_ENDPOINT = "https://openrouter.ai/api/v1/systemone"
+CHAT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_MODEL = "~typesafe/jev-latest"
 RETRYABLE = {408, 429, 500, 502, 503, 504}
 
@@ -99,5 +102,18 @@ class SystemOneClient:
                 raise InferenceError("Non-JSON response from System One", attempt + 1) from error
             if not isinstance(body, dict) or "error" in body:
                 raise InferenceError("System One returned an API error envelope", attempt + 1)
-            return Result(body, attempt + 1)
+            return Result(self.transform(body), attempt + 1)
         raise AssertionError("unreachable")
+
+    def transform(self, body: dict) -> dict:
+        return body
+
+
+class ChatClient(SystemOneClient):
+    """Same transport and retry policy against /chat/completions."""
+
+    def __init__(self, *args, endpoint: str = CHAT_ENDPOINT, **kwargs):
+        super().__init__(*args, endpoint=endpoint, **kwargs)
+
+    def transform(self, body: dict) -> dict:
+        return normalize_usage(body)

@@ -51,6 +51,14 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--resume", action="store_true")
     run.add_argument("--retry-failed", action="store_true")
     run.add_argument("--dry-run", action="store_true", help="Write requests without API calls")
+    run.add_argument(
+        "--protocol",
+        choices=("systemone", "chat"),
+        default="systemone",
+        help="systemone: typed decisions (TypeSafe models only). "
+        "chat: JSON-schema chat completions, for models System One does not serve; "
+        "multi-label answers have no probabilities, so --threshold does not apply.",
+    )
     report = commands.add_parser(
         "report", help="Recompute metrics from an existing prediction ledger"
     )
@@ -102,6 +110,7 @@ def main() -> None:
                     resume=args.resume,
                     retry_failed=args.retry_failed,
                     dry_run=args.dry_run,
+                    protocol=args.protocol,
                 )
             )
             if args.dry_run:
