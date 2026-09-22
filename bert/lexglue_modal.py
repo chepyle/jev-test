@@ -51,8 +51,12 @@ volume = modal.Volume.from_name("jev-lexglue-bert", create_if_missing=True)
 app = modal.App("jev-lexglue-bert", image=image)
 
 
-def upstream_args(task: str, seed: int, output_dir: str) -> list[str]:
-    """Command line from coastalcph/lex-glue scripts/run_<task>.sh for one seed."""
+def upstream_args(task: str, seed: int, output_dir: str, epochs: int | None = None) -> list[str]:
+    """Command line from coastalcph/lex-glue scripts/run_<task>.sh for one seed.
+
+    run_eurlex.sh says 2 epochs (commit e7a46c9, alongside GPU_NUMBER=6); the original
+    script and the authors' runs used 20 with early stopping (coastalcph/lex-glue#21).
+    Pass epochs=20 to match the published setup."""
     script = "ecthr" if task.startswith("ecthr") else task
     batch, accumulation = (2, 4) if script in ("ecthr", "scotus") else (8, 1)
     args = ["python", f"experiments/{script}.py"]
@@ -67,7 +71,7 @@ def upstream_args(task: str, seed: int, output_dir: str) -> list[str]:
         "--load_best_model_at_end", "--metric_for_best_model", "micro-f1",
         "--greater_is_better", "True", "--evaluation_strategy", "epoch",
         "--save_strategy", "epoch", "--save_total_limit", "5",
-        "--num_train_epochs", "2" if task == "eurlex" else "20",
+        "--num_train_epochs", str(epochs or (2 if task == "eurlex" else 20)),
         "--learning_rate", "3e-5",
         "--per_device_train_batch_size", str(batch), "--per_device_eval_batch_size", str(batch),
         "--seed", str(seed), "--fp16", "--fp16_full_eval",
@@ -117,8 +121,9 @@ def run_committing(args: list[str], cwd: str) -> int:
     timeout=24 * 3600,
     retries=modal.Retries(max_retries=4, initial_delay=30.0, backoff_coefficient=2.0),
 )
-def train(task: str, seed: int = 1) -> dict:
-    output_dir = f"/vol/runs/{task}/seed_{seed}"
+def train(task: str, seed: int = 1, epochs: int | None = None) -> dict:
+    tag = f"-e{epochs}" if epochs else ""
+    output_dir = f"/vol/runs/{task}{tag}/seed_{seed}"
     done = os.path.join(output_dir, "DONE.json")
     volume.reload()
     if os.path.exists(done):
@@ -137,13 +142,13 @@ def train(task: str, seed: int = 1) -> dict:
         # Training finished without test logits. Stop instead of retrying into more epochs.
         return {"task": task, "seed": seed, "error": "trained but not predicted; inspect"}
     prune_incomplete_checkpoints(output_dir)
-    workdir = f"/vol/work/{task}"  # CaseHOLD caches features relative to cwd
+    workdir = f"/vol/work/{task}{tag}"  # CaseHOLD caches features relative to cwd
     os.makedirs(workdir, exist_ok=True)
     for entry in ("experiments", "models"):
         link = os.path.join(workdir, entry)
         if not os.path.exists(link):
             os.symlink(f"/lex-glue/{entry}", link)
-    code = run_committing(upstream_args(task, seed, output_dir), workdir)
+    code = run_committing(upstream_args(task, seed, output_dir, epochs), workdir)
     if code != 0:
         raise RuntimeError(f"{task} seed {seed}: upstream script exited {code}")
     if not os.path.exists(os.path.join(output_dir, "test_logits.npy")):
@@ -302,7 +307,8 @@ def bench(tasks: str = "all", steps: int = 60, fp16: bool = True, logging_steps:
 
 
 @app.local_entrypoint()
-def main(tasks: str = "all", seed: int = 1):
+def main(tasks: str = "all", seed: int = 1, epochs: int = 0):
     selected = list(TASKS) if tasks == "all" else tasks.split(",")
-    results = list(train.map(selected, kwargs={"seed": seed}, return_exceptions=True))
+    kwargs = {"seed": seed, "epochs": epochs or None}
+    results = list(train.map(selected, kwargs=kwargs, return_exceptions=True))
     print(json.dumps([r if isinstance(r, dict) else repr(r) for r in results], indent=2))
