@@ -5,6 +5,10 @@
 
 Expects <logits>/<task>/test_logits.npy (row order = the pinned test split). Multi-label
 tasks apply sigmoid and upstream's 0.5 threshold; single-label tasks take softmax and argmax.
+
+Upstream's SCOTUS head has 14 outputs (label_list = range(14)) but the released data has 13
+classes. The unused last column is dropped only if it never wins the argmax, so predictions
+are unchanged; probabilities are renormalized over the 13 real classes.
 """
 
 import argparse
@@ -32,6 +36,11 @@ def export(logits_dir: Path, data_dir: Path, output: Path) -> dict:
             info = manifest["tasks"][name]
             if logits.shape[0] != info["total_rows"]:
                 raise SystemExit(f"{name}: {logits.shape[0]} logit rows != {info['total_rows']}")
+            extra = logits.shape[1] - len(task.codes)
+            if not task.multilabel and extra > 0:
+                if (logits.argmax(axis=1) >= len(task.codes)).any():
+                    raise SystemExit(f"{name}: an unused logit column wins the argmax")
+                logits = logits[:, : len(task.codes)]
             if logits.shape[1] != len(task.codes):
                 raise SystemExit(f"{name}: {logits.shape[1]} logit columns != {len(task.codes)}")
             probs = expit(logits) if task.multilabel else softmax(logits, axis=1)

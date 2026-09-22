@@ -288,6 +288,70 @@ def hierarchical_check() -> dict:
     return trace
 
 
+@app.function(gpu=GPU, volumes={"/vol": volume}, timeout=3600)
+def repredict_ecthr(task: str, seed: int = 1) -> dict:
+    """Recompute ECtHR val/test logits from the saved best model under fp16 autocast.
+
+    Upstream predicts with --fp16_full_eval, which casts the whole model to half precision
+    after training; for ecthr_a seed 1 that produced NaN logits for 951/1000 test cases.
+    Training-time evaluation (the regime that selected the best checkpoint) runs fp32
+    weights under autocast, so reproducing its validation micro-F1 checks this path."""
+    import sys
+
+    import numpy as np
+    import torch
+    from datasets import load_dataset
+    from safetensors.torch import load_file
+    from transformers import AutoConfig, AutoModelForSequenceClassification, AutoTokenizer
+
+    sys.path.insert(0, "/lex-glue")
+    from models.hierbert import HierarchicalBert
+
+    run = f"/vol/runs/{task}/seed_{seed}"
+    config = AutoConfig.from_pretrained(run)
+    model = AutoModelForSequenceClassification.from_pretrained(
+        "bert-base-uncased", config=config, attn_implementation="eager"
+    )
+    model.bert = HierarchicalBert(encoder=model.bert, max_segments=64, max_segment_length=128)
+    missing = model.load_state_dict(load_file(f"{run}/model.safetensors"), strict=True)
+    model = model.cuda().eval()
+    tok = AutoTokenizer.from_pretrained(run)
+    template = [[0] * 128]
+    out = {"load": str(missing)}
+    for split in ("validation", "test"):
+        rows = load_dataset(
+            "coastalcph/lex_glue",
+            task,
+            split=split,
+            revision="c23fdff1a6bf74e0e1a71cb86f1e781d37da888c",
+        )
+        logits = []
+        for start in range(0, len(rows), 8):
+            batch = {"input_ids": [], "attention_mask": [], "token_type_ids": []}
+            for case in rows[start : start + 8]["text"]:
+                enc = tok(case[:64], padding="max_length", max_length=128, truncation=True)
+                for key in batch:
+                    batch[key].append(enc[key] + template * (64 - len(enc[key])))
+            inputs = {k: torch.tensor(v).cuda() for k, v in batch.items()}
+            with torch.no_grad(), torch.autocast("cuda", dtype=torch.float16):
+                logits.append(model(**inputs).logits.float().cpu().numpy())
+        logits = np.concatenate(logits)
+        np.save(f"{run}/{split}_logits_autocast.npy", logits)
+        out[split] = {
+            "rows": len(rows),
+            "nan": int(np.isnan(logits).sum()),
+            "labels": rows["labels"],
+        }
+    volume.commit()
+    return out
+
+
+@app.local_entrypoint()
+def repredict(task: str = "ecthr_a", seed: int = 1):
+    result = repredict_ecthr.remote(task, seed)
+    print(json.dumps(result))
+
+
 @app.local_entrypoint()
 def trace():
     print(json.dumps(hierarchical_check.remote(), indent=2))
