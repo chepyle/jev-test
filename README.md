@@ -118,6 +118,18 @@ uv run jev-bench prepare --tasks unfair_tos --split validation --limit 0 --outpu
 No claim is made about Jev's training-data overlap with this public benchmark. Publish
 the run settings, truncation counts, and model IDs alongside any accuracy comparison.
 
+## Detailed analysis
+
+```bash
+uv run jev-bench analyze --source jev=results/full-test/predictions.jsonl \
+  --output analysis/full-test.json
+```
+
+Adds Cohen's kappa (per label for multi-label tasks), MCC, precision/recall, top-3 accuracy,
+ROC-AUC, calibration (ECE, Brier), length/truncation breakdowns, and bootstrap intervals.
+Repeat `--source NAME=PATH` to compare prediction ledgers on shared examples: inter-model
+kappa, McNemar exact test, and paired bootstrap F1 differences. See `RESULTS.md`.
+
 ## Resume and failure recovery
 
 ```bash

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from filelock import FileLock, Timeout
 
+from jev_test.analysis import write_analysis
 from jev_test.client import DEFAULT_ENDPOINT, DEFAULT_MODEL
 from jev_test.data import prepare
 from jev_test.report import write_report
@@ -54,6 +55,18 @@ def parser() -> argparse.ArgumentParser:
         "report", help="Recompute metrics from an existing prediction ledger"
     )
     report.add_argument("directory", type=Path)
+    analyze = commands.add_parser(
+        "analyze", help="Kappa, calibration, and paired comparisons of prediction ledgers"
+    )
+    analyze.add_argument(
+        "--source",
+        action="append",
+        required=True,
+        metavar="NAME=PATH",
+        help="Predictions JSONL; repeat to compare. The first source is paired with the rest.",
+    )
+    analyze.add_argument("--output", type=Path, required=True)
+    analyze.add_argument("--seed", type=int, default=0)
     return result
 
 
@@ -100,6 +113,15 @@ def main() -> None:
                 if not result["complete"] or result["mixed_models"]:
                     print("Run incomplete or mixed: see report and resume guidance in README.")
                     sys.exit(2)
+        elif args.command == "analyze":
+            sources = {}
+            for item in args.source:
+                name, sep, path = item.partition("=")
+                if not sep or not name or name in sources:
+                    raise ValueError(f"--source must be a unique NAME=PATH, got {item!r}")
+                sources[name] = Path(path)
+            write_analysis(sources, args.output, args.seed)
+            print(f"Analysis: {args.output}")
         elif args.command == "report":
             with FileLock(args.directory / ".run.lock", timeout=0):
                 write_report(args.directory)
