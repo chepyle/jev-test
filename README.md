@@ -1,0 +1,200 @@
+# Jev × LexGLUE
+
+A reproducible **zero-shot** benchmark of [Jev](https://openrouter.ai/~typesafe/jev-latest)
+on all seven [LexGLUE](https://github.com/coastalcph/lex-glue) tasks. It freezes official
+evaluation examples, sends typed decisions through OpenRouter, checkpoints every completed
+request, and writes micro/macro-F1, usage, and cost reports.
+
+Jev uses OpenRouter's [`POST /api/v1/systemone`](https://openrouter.ai/docs/guides/community/typesafe-sdk)
+endpoint. Each single-label example becomes one **choice** question. Each multi-label
+example becomes one request containing an independent **noul** (yes/no probability)
+question per label. No chat completions, output-format prompting, or generated-text parsing
+are involved.
+
+## Quick start
+
+Python 3.11+ and [uv](https://docs.astral.sh/uv/) are required. The checked-in lockfile pins
+dependencies; the repository's `.python-version` selects Python 3.13.
+
+```bash
+uv sync --locked
+
+# Downloads the requested test splits; saves 10 randomly sampled examples per task.
+uv run jev-bench prepare --tasks all --limit 10 --output data/quick
+
+# Optional: inspect every request without an API key or inference charges.
+uv run jev-bench run --data data/quick --output results/preview --dry-run
+
+# OPENROUTER_API_KEY must be set in your environment.
+uv run jev-bench run --data data/quick --output results/quick
+
+# Recompute reports without network access or further API calls.
+uv run jev-bench report results/quick
+```
+
+Alternatively, copy `.env.example` to `.env`, fill in your key, and use
+`uv run --env-file .env jev-bench run ...`. `.env`, cached data, and results are gitignored.
+The application reads the key from the environment and never writes it into artifacts.
+`jev-test` and `python -m jev_test` are equivalent command entry points.
+
+`prepare` defaults to **10 examples per task**, sampled without replacement with seed 42.
+It downloads only the selected split, but the complete Parquet split must be cached even
+for a small sample. Inference runs once per selected document; multiple labels share that
+one request. Reuse prepared data across model runs to keep the evaluation examples fixed.
+
+## Full benchmark
+
+```bash
+uv run jev-bench prepare --tasks all --split test --limit 0 --output data/full-test
+uv run jev-bench run --data data/full-test --output results/full-test \
+  --model typesafe/jev-1.13 --concurrency 4
+```
+
+`--limit 0` selects the complete split: **23,607 test examples / initial API requests**.
+Use a concrete model ID for a publishable run. The default is `~typesafe/jev-latest`, matching
+the supplied OpenRouter model link. Its target can change; every response's resolved model
+ID is recorded, and the runner stops scheduling requests if it observes a version change.
+Reports suppress aggregate scores for mixed-model runs.
+
+API calls use your OpenRouter credits. Start with a small sample and inspect reported usage
+before running the complete benchmark. No hard spending cap is imposed by this client.
+
+## Tasks and labels
+
+| Task | Decision | Labels | Test examples |
+| --- | --- | ---: | ---: |
+| `ecthr_a` | ECHR provisions found violated | 10 | 1,000 |
+| `ecthr_b` | ECHR provisions allegedly violated | 10 | 1,000 |
+| `scotus` | Main Supreme Court issue area | 13 | 1,400 |
+| `eurlex` | EuroVoc concepts | 100 | 5,000 |
+| `ledgar` | Main contract provision topic | 100 | 10,000 |
+| `unfair_tos` | Potentially unfair terms categories | 8 | 1,607 |
+| `case_hold` | Correct holding among five candidates | 5 | 3,600 |
+
+Counts and zero-based label order follow the actual
+[pinned Hugging Face dataset](https://huggingface.co/datasets/coastalcph/lex_glue/tree/c23fdff1a6bf74e0e1a71cb86f1e781d37da888c).
+The older LexGLUE README lists 14 SCOTUS categories and 3,900 CaseHOLD test examples;
+this project validates against the released Parquet features and split sizes.
+
+Prompts use readable label descriptions: ECHR article names, SCOTUS issue areas, contract
+topics, and [English EuroVoc descriptors](https://github.com/nlpaueb/multi-eurlex/blob/078092d62633ab1fc85065cc5937e60edd805095/data/eurovoc_descriptors.json).
+The bundled catalog preserves the original codes and their exact dataset index order.
+CaseHOLD uses the five provided holding statements as its choice criteria.
+
+```bash
+uv run jev-bench tasks
+uv run jev-bench prepare --tasks scotus case_hold --limit 100 --seed 7 --output data/subset
+uv run jev-bench prepare --tasks unfair_tos --split validation --limit 0 --output data/dev
+```
+
+## Evaluation protocol
+
+- **Zero-shot:** no training examples, retrieval, fine-tuning, or few-shot demonstrations.
+  Only document text and candidate label descriptions enter API requests. Gold answers
+  stay local for scoring. This is a different training regime from the supervised models
+  in the [LexGLUE leaderboard](https://github.com/coastalcph/lex-glue#leaderboard).
+- **Multi-label selection:** a label is selected when its noul probability is strictly
+  greater than `--threshold` (default `0.5`). Tune prompts or thresholds on validation
+  data, then freeze settings before evaluating test data.
+- **Metrics:** micro-F1 and macro-F1 follow the
+  [upstream experiment scripts](https://github.com/coastalcph/lex-glue/tree/main/experiments).
+  ECtHR A/B and UNFAIR-ToS add a synthetic none-of-the-above column for empty label sets.
+  EUR-LEX does not. Multi-label macro-F1 includes all label columns; single-label macro-F1
+  uses the union of observed gold/predicted classes, as upstream. Zero-division scores are
+  zero. CaseHOLD reports both F1 variants; macro-F1 need not equal accuracy.
+- **Aggregates:** arithmetic, harmonic, and geometric means across the selected tasks.
+  A `lexglue_aggregate` is emitted only for all seven complete test splits with one resolved
+  model. Small samples receive an explicitly labeled `selected_tasks_aggregate`.
+- **Long documents:** by default, retain the head and tail within 48,000 characters,
+  including an omission marker. Record each example's original/sent lengths and truncation
+  status. CaseHOLD candidate holdings are always preserved. `--max-chars 0` sends complete
+  text; `--max-chars 24000` reduces the cap. This character cap is not an exact token budget
+  or a guarantee of fitting the model context: questions and choices also consume tokens.
+  The truncation protocol differs from upstream model-specific tokenization.
+- **Failures:** malformed/missing answers, API failures, and interrupted requests never
+  become empty or default predictions. Partial task scores use successful examples only,
+  clearly report coverage, and are diagnostic. Incomplete runs have no aggregate score.
+
+No claim is made about Jev's training-data overlap with this public benchmark. Publish
+the run settings, truncation counts, and model IDs alongside any accuracy comparison.
+
+## Resume and failure recovery
+
+```bash
+# Continue after interruption without paying again for checkpointed successes.
+uv run jev-bench run --data data/quick --output results/quick --resume
+
+# Explicitly retry failed examples as well as unfinished ones.
+uv run jev-bench run --data data/quick --output results/quick --resume --retry-failed
+```
+
+Repeat the original model, threshold, endpoint, and character-cap options when resuming.
+Resume verifies the data manifest, data checksums, protocol source hash, request hashes,
+and saved configuration before sending requests. A changed experiment needs a new output
+directory. Concurrency, timeout, and retry count can change on resume.
+
+Requests retry transport failures and HTTP 408/429/500/502/503/504 with backoff, up to
+`--retries 4` additional attempts. Permanent errors such as 401/402 stop the run immediately;
+other workers already in flight can finish and checkpoint. Exhausted retries or invalid
+responses also stop new work. Incomplete/mixed runs exit with code 2; interruption exits 130.
+
+Only one writer may use a run directory at a time. Checkpoints are flushed and synced after
+each completed call. Resume repairs an incomplete last JSONL line after an abrupt shutdown;
+corruption elsewhere is rejected. A request interrupted after the server processed it but
+before its checkpoint may be charged again on resume. Retry costs without returned usage
+cannot be recovered from the client ledger.
+
+## Artifacts
+
+Prepared data contains `manifest.json` plus one normalized JSONL file per task. The manifest
+records dataset revision, label-catalog hash, split, seed, exact row indices, fingerprints,
+and file checksums. Data preparation is pinned to revision
+`c23fdff1a6bf74e0e1a71cb86f1e781d37da888c`; it executes no remote dataset scripts.
+
+Each run directory contains:
+
+| File | Contents |
+| --- | --- |
+| `manifest.json` | Dataset snapshot metadata, settings, protocol hash, package versions |
+| `predictions.jsonl` | Append-only responses, gold/predicted labels, probabilities, model IDs, request hashes, errors, usage, latency |
+| `metrics.json` | Task metrics, coverage, aggregates, truncation, and reported API cost |
+| `metrics.csv` | One row per task; F1 values in `[0, 1]` |
+| `report.md` | Readable report with F1 displayed as percentages |
+
+Dry runs instead produce `requests.jsonl` and `preview.json`. Use a separate output directory
+for previews. Local artifacts contain public dataset excerpts and model responses; keep
+the prepared data alongside your run if you want to reconstruct requests later.
+
+`reported_cost_usd` sums `usage.cost` returned by OpenRouter, including recorded responses
+that failed validation. It is `null` if no costs were returned, and is not a billing estimate
+for missing or retried responses. Latency includes client retries/backoff; concurrency affects
+it, so it should not be interpreted as isolated model inference latency.
+
+## Development
+
+```bash
+uv sync --locked
+uv run pytest -q
+uv run ruff check src tests
+uv run ruff format --check src tests
+```
+
+Tests use synthetic data and a mocked HTTP transport and require no credentials or network.
+They check reference metric edge cases, request isolation from gold labels, strict response
+validation, error handling, dataset integrity, resuming, and all seven task paths.
+
+Code lives in `src/jev_test`: `data.py` freezes datasets, `tasks.py` and `questions.py` define
+the protocol, `client.py` calls System One, `runner.py` checkpoints inference, and
+`metrics.py`/`report.py` score results. `assets/labels.json` includes label-source attribution.
+
+## Sources and attribution
+
+- [Chalkidis et al. (2022), LexGLUE](https://aclanthology.org/2022.acl-long.297/), ACL 2022,
+  pp. 4310–4330. Cite this paper when publishing benchmark results.
+- [LexGLUE dataset card and licensing](https://huggingface.co/datasets/coastalcph/lex_glue):
+  the card declares CC BY 4.0; consult it for the underlying dataset sources.
+- [MultiEURLEX](https://github.com/nlpaueb/multi-eurlex): source of the bundled English
+  EuroVoc descriptor subset. Labels were extracted from commit
+  `078092d62633ab1fc85065cc5937e60edd805095`.
+- [OpenRouter System One integration](https://openrouter.ai/docs/guides/community/typesafe-sdk)
+  and [TypeSafe primitives](https://docs.typesafe.ai/primitives) define the API contract.

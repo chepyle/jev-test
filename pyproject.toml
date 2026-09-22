@@ -1,0 +1,37 @@
+[project]
+name = "jev-test"
+version = "0.1.0"
+description = "Reproducible zero-shot Jev evaluation on all seven LexGLUE tasks"
+readme = "README.md"
+authors = [
+    { name = "chepyle", email = "6445835+chepyle@users.noreply.github.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "datasets>=4.0,<6",
+    "filelock>=3.18,<5",
+    "httpx>=0.28,<1",
+    "numpy>=2.0,<3",
+    "scikit-learn>=1.6,<2",
+]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "ruff>=0.12,<1"]
+
+[project.scripts]
+jev-test = "jev_test.cli:main"
+jev-bench = "jev_test.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12.13,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,23 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Credentials, downloaded data, and evaluation artifacts
+.env
+.env.*
+!.env.example
+.cache/
+data/
+results/
+.pytest_cache/
+.ruff_cache/
+
+# longrun job state (launcher script jobs/launch.py is tracked)
+jobs/*/
