@@ -11,6 +11,16 @@ example becomes one request containing an independent **noul** (yes/no probabili
 question per label. No chat completions, output-format prompting, or generated-text parsing
 are involved.
 
+## Results
+
+Full test run, `typesafe/jev-1.13-20260917`, zero-shot, 23,607/23,607 examples, $4.02:
+arithmetic-mean micro/macro-F1 **69.9 / 62.6**, against fine-tuned BERT 77.8 / 69.5 on the
+leaderboard. Compared with a reproduced BERT-base on the same test examples, Jev is ahead on
+CaseHOLD (+6.5 μ-F1), SCOTUS (+5.4), and ECtHR A (+2.7) and behind on ECtHR B, LEDGAR,
+UNFAIR-ToS, and EUR-LEX. On ECtHR A/B and UNFAIR-ToS it ranks labels better than
+BERT (macro ROC-AUC +0.015) but over-predicts at the fixed 0.5 threshold.
+[`RESULTS.md`](RESULTS.md) has intervals, kappa, calibration, paired tests, and caveats.
+
 ## Quick start
 
 Python 3.11+ and [uv](https://docs.astral.sh/uv/) are required. The checked-in lockfile pins
@@ -182,13 +192,54 @@ that failed validation. It is `null` if no costs were returned, and is not a bil
 for missing or retried responses. Latency includes client retries/backoff; concurrency affects
 it, so it should not be interpreted as isolated model inference latency.
 
+## Fine-tuned BERT baseline
+
+`bert/` reproduces the LexGLUE BERT-base baseline with the upstream
+[`coastalcph/lex-glue`](https://github.com/coastalcph/lex-glue) scripts (commit `419a49d`) on
+[Modal](https://modal.com) GPUs, keeping per-example test logits for paired comparison with Jev.
+It needs a Modal account and runs from its own environment (`uvx modal`); it is not a project
+dependency.
+
+```bash
+uvx modal run bert/lexglue_modal.py::bench --steps 60   # throughput, for a cost estimate
+uvx modal run --detach bert/lexglue_modal.py::main --tasks all --seed 1
+uvx modal run --detach bert/lexglue_modal.py::main --tasks eurlex --seed 1 --epochs 20
+uvx modal volume get jev-lexglue-bert runs/<task>/seed_1/test_logits.npy \
+  results/bert-seed1/logits/<task>/
+uv run python bert/export_predictions.py --logits results/bert-seed1/logits \
+  --data data/full-test --output results/bert-seed1/predictions.jsonl
+uv run jev-bench analyze --source jev=results/full-test/predictions.jsonl \
+  --source bert=results/bert-seed1/predictions.jsonl --output analysis/jev-vs-bert.json
+uv run python analysis/paired_auc.py results/full-test/predictions.jsonl \
+  results/bert-seed1/predictions.jsonl > analysis/paired-auc.json
+```
+
+- `patch_upstream.py` lists every change to the upstream code. It loads the pinned Parquet
+  release, saves test logits, uses eager attention for the hierarchical ECtHR/SCOTUS models
+  (SDPA returns NaN on all-padding segments), and fixes three incompatibilities with
+  transformers 4.44. Hyperparameters are upstream's.
+- Training checkpoints every epoch (model, optimizer, LR scheduler, RNG, early-stopping state)
+  to the `jev-lexglue-bert` volume and resumes after preemption. A finished run is finalized,
+  never resumed, so a retry cannot add epochs.
+- `repredict` recomputes ECtHR test logits under fp16 autocast, from the saved best model,
+  when upstream's `--fp16_full_eval` returns NaN.
+- `check` and `trace` are the attention-NaN diagnostics behind the eager-attention patch.
+
+Seed 1 cost $21.58 on A100-40GB and lands within 1.1 μ-F1 of the published 5-seed means.
+Upstream's `run_eurlex.sh` trains 2 epochs, which under-fits (66.5 / 33.9); use `--epochs 20`
+(see `RESULTS.md` and coastalcph/lex-glue#21).
+
+`jobs/launch.py` supervises a long `jev-bench run` (heartbeats, 30 s+ backoff relaunch on
+throttles, hard stop on 401/402). It imports a local `jobstate` helper that is not in this
+repository.
+
 ## Development
 
 ```bash
 uv sync --locked
 uv run pytest -q
-uv run ruff check src tests
-uv run ruff format --check src tests
+uv run ruff check src tests bert analysis
+uv run ruff format --check src tests bert analysis
 ```
 
 Tests use synthetic data and a mocked HTTP transport and require no credentials or network.
@@ -197,7 +248,8 @@ validation, error handling, dataset integrity, resuming, and all seven task path
 
 Code lives in `src/jev_test`: `data.py` freezes datasets, `tasks.py` and `questions.py` define
 the protocol, `client.py` calls System One, `runner.py` checkpoints inference, and
-`metrics.py`/`report.py` score results. `assets/labels.json` includes label-source attribution.
+`metrics.py`/`report.py` score results, and `analysis.py` adds kappa, calibration, and paired
+comparisons. `assets/labels.json` includes label-source attribution.
 
 ## Sources and attribution
 
