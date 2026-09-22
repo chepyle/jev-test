@@ -85,8 +85,102 @@ A global threshold does not close the EUR-LEX gap (+0.9 μ-F1 at best). On UNFAI
 trades macro-F1 for micro-F1, so per-label thresholds tuned on validation are the candidate
 next step there.
 
-## Paired comparison with BERT
+## Paired comparison with a reproduced BERT-base baseline
 
-Pending: BERT-base reproduction with the upstream scripts on Modal (`bert/`), one seed per
-task, to measure inter-model kappa, McNemar tests, and paired F1 differences on the same
-test examples.
+### Reproduction
+
+BERT-base fine-tuned with the upstream `coastalcph/lex-glue` scripts (commit `419a49d`) on
+Modal A100-40GB, one seed (1) per task; the leaderboard is a 5-seed mean. Cost: $21.58.
+All code changes are in `bert/patch_upstream.py`; per-example test logits are in
+`results/bert-seed1/` (gitignored), predictions exported with `bert/export_predictions.py`.
+
+| Task | Reproduced μ-F1 / m-F1 | Published BERT | Epochs (early stop) |
+|---|---|---|---:|
+| ECtHR A | 70.3 / 61.9 | 71.2 / 63.6 | 7 |
+| ECtHR B | 78.6 / 72.5 | 79.7 / 73.4 | 7 |
+| SCOTUS | 67.2 / 60.7 | 68.3 / 58.3 | 10 |
+| EUR-LEX | 71.6 / 56.5 | 71.4 / 57.2 | 11 |
+| LEDGAR | 88.0 / 82.4 | 87.6 / 81.8 | 15 |
+| UNFAIR-ToS | 95.2 / 80.0 | 95.6 / 81.3 | 12 |
+| CaseHOLD | 70.8 | 70.8 | 4 |
+
+Every task is within 1.1 μ-F1 of the published mean (m-F1 within 2.4), so the reproduction
+stands in for the leaderboard BERT. Deviations from running the scripts as published:
+
+- **Eager attention for ECtHR/SCOTUS.** transformers 4.44 defaults BERT to SDPA, which
+  returns NaN for HierarchicalBert's all-padding segments (verified on real ECtHR cases:
+  `modal run bert/lexglue_modal.py::trace`). Upstream's transformers 4.9 had only eager.
+- **EUR-LEX trained up to 20 epochs.** `run_eurlex.sh` says 2 (set in commit `e7a46c9`
+  alongside `GPU_NUMBER=6`); the maintainer reports 8 to 16 epochs for the published runs
+  (coastalcph/lex-glue#21). Null result kept: the 2-epoch run scored **66.5 / 33.9**.
+- **ECtHR A test logits recomputed under fp16 autocast.** `--fp16_full_eval` casts the
+  model to half precision after training; 9510/10000 ECtHR A test logits came back NaN
+  (scored 19.9 / 12.2). Recomputing from the saved best model reproduces its logged
+  validation μ/m-F1 exactly (0.706 / 0.643). No other task had NaN or inf logits.
+- **SCOTUS head has 14 outputs** (`label_list = range(14)`) for 13 released classes; the
+  unused column never wins the argmax and is dropped at export.
+
+### Agreement with gold: Jev vs BERT
+
+Cohen's κ against gold (per-label mean for multi-label tasks), 95% bootstrap CI, n as above.
+
+| Task | Jev κ | BERT κ | Jev ECE | BERT ECE |
+|---|---|---|---:|---:|
+| ECtHR A | **0.716** [0.672, 0.751] | 0.617 [0.575, 0.655] | 0.082 | 0.032 |
+| ECtHR B | 0.681 [0.650, 0.706] | 0.710 [0.676, 0.738] | 0.096 | 0.034 |
+| SCOTUS | **0.670** [0.642, 0.698] | 0.611 [0.583, 0.640] | 0.148 | 0.259 |
+| EUR-LEX | 0.337 [0.330, 0.343] | **0.551** [0.538, 0.560] | 0.099 | 0.012 |
+| LEDGAR | 0.748 [0.740, 0.757] | **0.877** [0.871, 0.884] | 0.116 | 0.109 |
+| UNFAIR-ToS | 0.493 [0.447, 0.533] | **0.775** [0.711, 0.824] | 0.073 | 0.005 |
+| CaseHOLD | **0.716** [0.698, 0.734] | 0.635 [0.618, 0.653] | 0.038 | 0.049 |
+
+Bold marks non-overlapping intervals. ECtHR B intervals overlap.
+
+### Paired comparison on identical test examples
+
+`jev-bench analyze --source jev=... --source bert=...` → `analysis/jev-vs-bert.json`.
+ΔF1 = Jev − BERT, paired bootstrap (1000 resamples, seed 0). McNemar: exact binomial test on
+examples where exactly one model is fully correct (whole label set for multi-label tasks).
+
+| Task | Inter-model κ | Same prediction | Only Jev right | Only BERT right | McNemar p | Δ μ-F1 [95% CI] | Δ m-F1 [95% CI] |
+|---|---:|---:|---:|---:|---:|---|---|
+| ECtHR A | 0.72 | 50.8% | 136 | 182 | 0.012 | +2.7 [+0.5, +4.8] | +9.5 [+5.8, +13.2] |
+| ECtHR B | 0.72 | 43.7% | 109 | 246 | 3e-13 | −3.2 [−4.9, −1.4] | 0.0 [−3.5, +3.4] |
+| SCOTUS | 0.57 | 64.1% | 249 | 174 | 3e-4 | +5.4 [+2.5, +8.1] | +1.4 [−4.0, +6.0] |
+| EUR-LEX | 0.32 | 0.0% | 0 | 301 | 5e-91 | −32.5 [−33.1, −31.9] | −19.4 [−20.5, −18.2] |
+| LEDGAR | 0.77 | 77.0% | 350 | 1615 | 1e-193 | −12.7 [−13.5, −11.8] | −19.1 [−20.5, −17.5] |
+| UNFAIR-ToS | 0.42 | 75.1% | 31 | 348 | 5e-69 | −18.8 [−20.9, −16.7] | −25.7 [−30.8, −20.2] |
+| CaseHOLD | 0.61 | 68.7% | 562 | 329 | 5e-15 | +6.5 [+4.8, +8.0] | +6.5 [+4.8, +8.0] |
+
+Inter-model κ is pooled over label cells for multi-label tasks. "Same prediction" is an
+identical label set.
+
+Threshold-free ranking, macro ROC-AUC (`analysis/paired_auc.py` → `analysis/paired-auc.json`,
+1000 paired resamples):
+
+| Task | Jev | BERT | Δ [95% CI] |
+|---|---:|---:|---|
+| ECtHR A | 0.974 | 0.959 | +0.015 [+0.008, +0.022] |
+| ECtHR B | 0.951 | 0.937 | +0.015 [+0.005, +0.026] |
+| EUR-LEX | 0.902 | 0.947 | −0.045 [−0.048, −0.042] |
+| UNFAIR-ToS | 0.992 | 0.977 | +0.015 [+0.006, +0.026] |
+
+Findings:
+
+- **Zero-shot Jev beats fine-tuned BERT on three tasks with paired significance:** CaseHOLD
+  (+6.5 μ-F1), SCOTUS (+5.4 μ-F1), and ECtHR A (+2.7 μ-F1, +9.5 m-F1). It loses on LEDGAR,
+  UNFAIR-ToS, EUR-LEX, and ECtHR B micro-F1.
+- **On ECtHR A the F1 and McNemar results point in opposite directions.** Jev has higher
+  F1 but fewer exactly correct label sets (136 vs 182, p=0.012), because over-predicted
+  labels cost partial F1 credit but zero exact-match credit.
+- **Jev ranks multi-label candidates better than BERT on ECtHR A/B and UNFAIR-ToS**
+  (+0.015 AUC each, intervals above zero). There, the F1 deficit comes from Jev's
+  uncalibrated 0.5 threshold (ECE 0.07 to 0.10 vs BERT's 0.005 to 0.034), not its ranking.
+  EUR-LEX is the exception: BERT ranks better (−0.045 AUC) and wins on every metric.
+- **The models make different mistakes.** Inter-model κ is 0.32 to 0.77. At least one model
+  is right on 85.0% of SCOTUS cases (Jev 72.6%, BERT 67.2%), 86.4% of CaseHOLD
+  (77.3% / 70.8%), and 91.5% of LEDGAR (75.3% / 88.0%). This is an upper bound on
+  combining them, not a result; no ensemble was built or validated.
+- **Single seed.** BERT's seed-to-seed spread is not measured here, so paired intervals
+  cover test-sample variation only. Differences under about 1 F1 point (the gap between
+  this seed and the published 5-seed means) should not be read as model differences.
