@@ -65,14 +65,19 @@ def main():
     with Job(
         job_id, total=total, cmd=cmd, resume_cmd=cmd, stall_seconds=2400, on_terminate=stop_child
     ) as job:
+        # Backoff escalates only across consecutive launches that made no progress. An
+        # isolated 529 after a thousand good requests restarts at the 30 s base; the old
+        # count-every-relaunch policy reached 1355 s and would quit after 8 scattered 529s.
         throttles = 0
-        for launch in range(MAX_RELAUNCHES + 1):
+        launch = 0
+        best_ok, _ = ledger_state(ledger)
+        while True:
             argv = list(base)
             if os.path.exists(os.path.join(output, "manifest.json")):
-                argv.append("--resume")
-                if launch > 0:
-                    argv.append("--retry-failed")  # re-send only transient failures
+                # Re-send checkpointed failures too; permanent ones stop the loop below.
+                argv += ["--resume", "--retry-failed"]
             job.incident("launch {}: {}".format(launch, " ".join(argv)))
+            launch += 1
             child["proc"] = proc = subprocess.Popen(argv)
             while proc.poll() is None:
                 ok, errors = ledger_state(ledger)
@@ -88,9 +93,12 @@ def main():
             )
             if not errors or not all(TRANSIENT.search(m) for m in messages):
                 raise RuntimeError(f"permanent failure, not resuming: {messages[:5]}")
+            if ok > best_ok:
+                best_ok, throttles = ok, 0
+            if throttles >= MAX_RELAUNCHES:
+                raise RuntimeError(f"gave up after {MAX_RELAUNCHES} relaunches without progress")
             job.sleep_backoff(throttles, reason=f"transient errors {messages[:3]}")
             throttles += 1
-        raise RuntimeError(f"gave up after {MAX_RELAUNCHES} relaunches")
 
 
 if __name__ == "__main__":

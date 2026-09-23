@@ -4,6 +4,7 @@ import asyncio
 import json
 import math
 import random
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
@@ -15,7 +16,10 @@ from jev_test.chat import normalize_usage
 DEFAULT_ENDPOINT = "https://openrouter.ai/api/v1/systemone"
 CHAT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_MODEL = "~typesafe/jev-latest"
-RETRYABLE = {408, 429, 500, 502, 503, 504}
+RETRYABLE = {408, 429, 500, 502, 503, 504, 529}
+# Throttle and overload responses back off from 30 s: short cooldowns waste attempts.
+THROTTLED = {429, 529}
+PROVIDER_NAME = re.compile(r"[A-Za-z0-9 ._-]{1,64}")
 
 
 def reject_nonfinite(value: str) -> None:
@@ -34,7 +38,7 @@ class Result:
     attempts: int
 
 
-def retry_delay(header: str | None, attempt: int) -> float:
+def retry_delay(header: str | None, attempt: int, base: float = 1.0) -> float:
     if header:
         try:
             seconds = float(header)
@@ -46,7 +50,19 @@ def retry_delay(header: str | None, attempt: int) -> float:
                 return max(0, (date - datetime.now(UTC)).total_seconds())
             except (ValueError, TypeError):
                 pass
-    return min(2**attempt + random.uniform(0, 0.5), 60)
+    delay = base * 2**attempt
+    return min(delay * random.uniform(1.0, 1.3), max(60, base * 8))
+
+
+def provider_name(response: httpx.Response) -> str | None:
+    """The failing provider from OpenRouter's error envelope, if it is a short plain name.
+
+    Only this field is kept: metadata.raw carries the upstream body, which is never logged."""
+    try:
+        name = response.json()["error"]["metadata"]["provider_name"]
+    except (ValueError, KeyError, TypeError):
+        return None
+    return name if isinstance(name, str) and PROVIDER_NAME.fullmatch(name) else None
 
 
 class SystemOneClient:
@@ -82,7 +98,8 @@ class SystemOneClient:
                 await asyncio.sleep(retry_delay(None, attempt))
                 continue
             if response.status_code in RETRYABLE and attempt < self.retries:
-                await asyncio.sleep(retry_delay(response.headers.get("retry-after"), attempt))
+                base = 30.0 if response.status_code in THROTTLED else 1.0
+                await asyncio.sleep(retry_delay(response.headers.get("retry-after"), attempt, base))
                 continue
             if response.is_error:
                 # Never put request headers or arbitrary upstream bodies in logs.
@@ -93,9 +110,12 @@ class SystemOneClient:
                     404: "check endpoint and model ID",
                     413: "reduce --max-chars",
                     429: "reduce --concurrency",
+                    529: "provider overloaded",
                 }
                 hint = hints.get(response.status_code, "see OpenRouter request logs")
-                raise InferenceError(f"HTTP {response.status_code}: {hint}", attempt + 1)
+                provider = provider_name(response)
+                source = f" (provider {provider})" if provider else ""
+                raise InferenceError(f"HTTP {response.status_code}{source}: {hint}", attempt + 1)
             try:
                 body = json.loads(response.content, parse_constant=reject_nonfinite)
             except ValueError as error:
