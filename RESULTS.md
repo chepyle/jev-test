@@ -263,3 +263,59 @@ Findings:
 - The 350-example sample (50/task) run beforehand separated only ECtHR B; the full run
   separates five of seven Jev-Luna pairs. Sample result kept in
   `analysis/sample50-jev-vs-luna.json`.
+
+## Jev with validation-tuned thresholds (multi-label tasks)
+
+Jev's multi-label answers are per-label probabilities cut at 0.5. Thresholds were chosen on
+the **validation** split and applied once to the stored test probabilities; test labels were
+used only to score the frozen choice (`analysis/tune_threshold.py` →
+`analysis/threshold-tuning.json`, rerun twice with identical output).
+
+- Validation run: `typesafe/jev-1.13` (resolved `jev-1.13-20260917`, same as test), 9,275 /
+  9,275 examples (ECtHR A/B 1,000 each, EUR-LEX 5,000, UNFAIR-ToS 2,275), $2.47. HTTP 529
+  ("Overloaded") hit 39 times; the wrapper resumed each (fixed afterwards in `3490d86`).
+- Rules fixed before scoring test: **primary**, one threshold per task maximizing validation
+  micro-F1; **secondary**, one threshold per label maximizing that label's validation F1.
+  Grid 0.05 to 0.95 by 0.05, ties to the value nearest 0.5. Labels with no positive
+  validation example keep 0.5.
+- This is allowed by the protocol (no test data, no training examples in prompts). It has no
+  counterpart for Luna, whose chat answers carry no probabilities, or for BERT, which uses
+  upstream's fixed 0.5.
+
+| Task | Chosen (per task) | 0.5 μ / m | Per task μ / m | Per label μ / m | BERT μ / m |
+|---|---:|---|---|---|---|
+| ECtHR A | 0.65 | 73.0 / 71.3 | 74.0 / 70.6 | 74.3 / 73.8 | 70.3 / 61.9 |
+| ECtHR B | 0.75 | 75.4 / 72.6 | 80.2 / 75.5 | 80.0 / 74.3 | 78.6 / 72.5 |
+| EUR-LEX | 0.70 | 39.1 / 37.0 | 39.4 / 35.1 | 47.9 / 45.4 | 71.6 / 56.5 |
+| UNFAIR-ToS | 0.90 | 76.4 / 54.4 | 90.6 / 35.2 | 91.9 / 67.9 | 95.2 / 80.0 |
+| All 7 tasks, arithmetic mean | | 69.9 / 62.6 | 72.8 / 59.9 | **74.2 / 66.3** | 77.4 / 69.3 |
+| All 7 tasks, harmonic mean | | 66.3 / 59.3 | 68.4 / 54.2 | 71.7 / 64.5 | 76.3 / 68.0 |
+
+The means include the three single-label tasks unchanged. Paired bootstrap on test (1000
+resamples, seed 0), Δ μ-F1 / Δ m-F1 with 95% CIs:
+
+| Task | Per task − 0.5 | Per label − 0.5 | Per task − BERT | Per label − BERT |
+|---|---|---|---|---|
+| ECtHR A | +1.0 [−0.5, +2.7] / −0.8 [−4.5, +2.7] | +1.3 [−0.3, +3.2] / +2.5 [+0.6, +4.7] | +3.7 [+1.7, +6.0] / +8.7 [+4.2, +13.0] | +4.0 [+1.8, +6.4] / +12.0 [+8.3, +16.1] |
+| ECtHR B | +4.8 [+3.5, +6.1] / +2.9 [+0.4, +5.7] | +4.6 [+3.1, +6.0] / +1.7 [−0.7, +4.6] | +1.6 [0.0, +3.2] / +2.9 [−0.4, +6.5] | +1.4 [−0.2, +3.1] / +1.7 [−1.5, +5.1] |
+| EUR-LEX | +0.4 [0.0, +0.8] / −1.9 [−2.6, −1.3] | +8.9 [+8.5, +9.2] / +8.4 [+7.8, +9.0] | −32.1 [−32.8, −31.5] / −21.4 [−22.4, −20.1] | −23.6 [−24.2, −23.1] / −11.0 [−12.1, −9.8] |
+| UNFAIR-ToS | +14.2 [+11.9, +16.5] / −19.1 [−25.2, −13.2] | +15.5 [+13.6, +17.4] / +13.6 [+9.0, +18.0] | −4.6 [−6.1, −3.2] / −44.8 [−50.8, −38.0] | −3.3 [−4.8, −1.9] / −12.1 [−17.9, −6.7] |
+
+Findings:
+
+- **The pre-registered primary (one threshold per task) helps micro-F1 but hurts macro-F1.**
+  Mean μ-F1 69.9 → 72.8, mean m-F1 62.6 → 59.9. On UNFAIR-ToS a 0.9 cut gains 14.2 μ-F1
+  and loses 19.1 m-F1: it suppresses rare categories along with false positives.
+- **Per-label thresholds improve both** (mean 74.2 / 66.3), gaining on every multi-label task
+  in μ-F1, most on UNFAIR-ToS (+15.5) and EUR-LEX (+8.9). With 8 to 100 thresholds fitted to
+  1,000 to 5,000 validation documents they can overfit; the test gains are measured on held-out
+  data, so overfitting would show up as smaller gains, not inflated ones.
+- **Against BERT:** ECtHR B moves from −3.2 μ-F1 to +1.6 [0.0, +3.2] (per task), a
+  borderline win; ECtHR A widens to +4.0. UNFAIR-ToS narrows from −18.8 to −3.3 μ-F1 but
+  macro-F1 still trails by 12. **EUR-LEX remains far behind (−23.6 μ-F1)** even with
+  per-label thresholds, consistent with its lower ranking quality (ROC-AUC 0.902 vs 0.947).
+- With per-label thresholds Jev wins 4 of 7 tasks against fine-tuned BERT (ECtHR A, ECtHR B
+  borderline, SCOTUS, CaseHOLD) and trails on 3 (EUR-LEX, LEDGAR, UNFAIR-ToS). The overall
+  mean gap shrinks from 7.5 to 3.2 μ-F1 and from 6.7 to 3.0 m-F1.
+- The Jev-vs-Luna and Jev-vs-BERT tables above use the 0.5 default and remain the zero-tuning
+  comparison. Luna 71.3 / 63.9 falls between Jev at 0.5 and Jev with per-label thresholds.

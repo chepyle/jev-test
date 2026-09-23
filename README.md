@@ -18,12 +18,14 @@ Full test split (23,607 examples), zero-shot, micro-F1 arithmetic mean across th
 | Model | Protocol | μ-F1 | m-F1 | Cost |
 |---|---|---:|---:|---:|
 | Jev (`typesafe/jev-1.13-20260917`) | System One | 69.9 | 62.6 | $4.02 |
+| Jev, per-label thresholds tuned on validation | System One | 74.2 | 66.3 | +$2.47 |
 | GPT-5.6 Luna (`openai/gpt-5.6-luna`) | chat, JSON schema | 71.3 | 63.9 | $16.45 |
 | BERT-base, fine-tuned (reproduced, seed 1) | supervised | 77.4 | 69.3 | $21.58 GPU |
 
 The two zero-shot models are close: Luna is ahead on ECtHR A/B, EUR-LEX, and UNFAIR-ToS, Jev on
 SCOTUS and LEDGAR, and CaseHOLD is a tie. Both beat fine-tuned BERT on CaseHOLD and trail it by
-13 to 29 points on EUR-LEX, LEDGAR, and UNFAIR-ToS. [`RESULTS.md`](RESULTS.md) has per-task
+13 to 29 points on EUR-LEX, LEDGAR, and UNFAIR-ToS. Choosing Jev's per-label thresholds on the
+validation split (no test data, no training examples) cuts its gap to BERT from 7.5 to 3.2 μ-F1. [`RESULTS.md`](RESULTS.md) has per-task
 intervals, kappa, calibration, paired tests, and caveats, including the protocol difference.
 
 ## Quick start
