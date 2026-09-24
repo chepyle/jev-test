@@ -89,6 +89,18 @@ def single_label_metrics(gold: np.ndarray, pred: np.ndarray, probs: np.ndarray |
     return result
 
 
+def out_of_scope_metrics(gold: np.ndarray, pred: np.ndarray, oos: int) -> dict:
+    """CLINC150's metrics (Larson et al. 2019): accuracy on in-scope queries, where
+    predicting out-of-scope counts as wrong, and recall on out-of-scope queries."""
+    in_scope = gold != oos
+    flagged = pred == oos
+    return {
+        "in_scope_accuracy": float((pred[in_scope] == gold[in_scope]).mean()),
+        "oos_recall": float(flagged[~in_scope].mean()) if (~in_scope).any() else 0.0,
+        "oos_precision": float((gold[flagged] == oos).mean()) if flagged.any() else 0.0,
+    }
+
+
 def column_kappas(truth: np.ndarray, predicted: np.ndarray) -> np.ndarray:
     """Cohen's kappa per binary label column; NaN where kappa is undefined (p_e == 1)."""
     n = truth.shape[0]
@@ -188,14 +200,22 @@ def analyze_task(task_name: str, records: list[dict], rng: np.random.Generator) 
         def kappa(idx):
             return float(cohen_kappa_score(g[idx], p[idx]))
 
+    oos = task.codes.index("oos") if "oos" in task.codes else None
     point.update(score(task_name, gold, pred))
     samples = {key: [], "micro_f1": []}
+    if oos is not None:
+        point.update(out_of_scope_metrics(g, p, oos))
+        samples.update({"in_scope_accuracy": [], "oos_recall": []})
     for _ in range(BOOTSTRAP):
         idx = rng.integers(0, len(records), len(records))
         samples[key].append(kappa(idx))
         samples["micro_f1"].append(
             score(task_name, [gold[i] for i in idx], [pred[i] for i in idx])["micro_f1"]
         )
+        if oos is not None:  # uses the same draw, so other tasks' intervals are unchanged
+            extra = out_of_scope_metrics(g[idx], p[idx], oos)
+            samples["in_scope_accuracy"].append(extra["in_scope_accuracy"])
+            samples["oos_recall"].append(extra["oos_recall"])
     result = {
         "n": len(records),
         "metrics": point,

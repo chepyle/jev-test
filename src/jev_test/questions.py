@@ -20,6 +20,10 @@ INSTRUCTIONS = {
     "sentence is potentially unfair in that respect; a neutral mention is insufficient.",
     "case_hold": "Select the holding that correctly fills the masked citation in this court "
     "opinion excerpt. Exactly one of the five candidate holdings is correct.",
+    "banking77": "Classify this customer message to a bank by the customer's intent. "
+    "Select the single intent that best matches the request.",
+    "clinc150": "Classify this request to a virtual assistant by the user's intent. Select "
+    "the single matching intent, or out of scope if the request fits none of the listed intents.",
 }
 
 

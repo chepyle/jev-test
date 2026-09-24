@@ -77,3 +77,15 @@ def test_multilabel_paired_uses_only_shared_examples(tmp_path, monkeypatch):
     assert result["n"] == 3
     assert result["exact_correct_only_a"] == 1
     assert result["exact_correct_only_b"] == 1
+
+
+def test_clinc_out_of_scope_metrics_follow_the_paper():
+    from jev_test.analysis import out_of_scope_metrics
+
+    oos = 42
+    gold = np.array([1, 2, 3, oos, oos])
+    pred = np.array([1, oos, 4, oos, 5])
+    metrics = out_of_scope_metrics(gold, pred, oos)
+    assert metrics["in_scope_accuracy"] == pytest.approx(1 / 3)  # oos on in-scope counts wrong
+    assert metrics["oos_recall"] == pytest.approx(1 / 2)
+    assert metrics["oos_precision"] == pytest.approx(1 / 2)

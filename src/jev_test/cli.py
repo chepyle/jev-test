@@ -13,7 +13,7 @@ from jev_test.client import DEFAULT_ENDPOINT, DEFAULT_MODEL
 from jev_test.data import prepare
 from jev_test.report import write_report
 from jev_test.runner import run_benchmark
-from jev_test.tasks import TASK_NAMES, get_task
+from jev_test.tasks import ALL_TASKS, TASK_NAMES, get_task
 
 
 def parser() -> argparse.ArgumentParser:
@@ -23,7 +23,13 @@ def parser() -> argparse.ArgumentParser:
     commands = result.add_subparsers(dest="command", required=True)
     commands.add_parser("tasks", help="List supported tasks and label counts")
     data = commands.add_parser("prepare", help="Freeze official data and a deterministic sample")
-    data.add_argument("--tasks", nargs="+", choices=["all", *TASK_NAMES], default=["all"])
+    data.add_argument(
+        "--tasks",
+        nargs="+",
+        choices=["all", *ALL_TASKS],
+        default=["all"],
+        help="'all' means the seven LexGLUE tasks; banking77 and clinc150 are separate",
+    )
     data.add_argument("--split", choices=["test", "validation"], default="test")
     data.add_argument("--limit", type=int, default=10, help="Examples per task; 0 means full split")
     data.add_argument("--seed", type=int, default=42)
@@ -82,7 +88,7 @@ def main() -> None:
     args = parser().parse_args()
     try:
         if args.command == "tasks":
-            for name in TASK_NAMES:
+            for name in ALL_TASKS:
                 task = get_task(name)
                 print(f"{name:12} {task.kind:10} {len(task.codes):3} labels")
         elif args.command == "prepare":

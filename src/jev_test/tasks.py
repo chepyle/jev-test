@@ -9,6 +9,20 @@ DATASET_ID = CATALOG["dataset"]
 DATASET_REVISION = CATALOG["revision"]
 TASK_NAMES = ("ecthr_a", "ecthr_b", "scotus", "eurlex", "ledgar", "unfair_tos", "case_hold")
 
+# Intent-detection benchmarks, used to test findings outside law. A separate catalog keeps
+# the LexGLUE catalog, its hash, and every prepared LexGLUE manifest unchanged.
+INTENT_CATALOG = json.loads(files("jev_test").joinpath("assets/intents.json").read_text())
+INTENT_TASKS = tuple(INTENT_CATALOG["tasks"])
+ALL_TASKS = TASK_NAMES + INTENT_TASKS
+SUITES = {CATALOG["dataset"]: CATALOG, INTENT_CATALOG["dataset"]: INTENT_CATALOG}
+
+
+def catalog_for(name: str) -> dict:
+    for catalog in SUITES.values():
+        if name in catalog["tasks"]:
+            return catalog
+    raise KeyError(f"Unknown task: {name}")
+
 
 @dataclass(frozen=True)
 class Task:
@@ -36,5 +50,5 @@ class Task:
 
 
 def get_task(name: str) -> Task:
-    entry = CATALOG["tasks"][name]
+    entry = catalog_for(name)["tasks"][name]
     return Task(name, entry["kind"], tuple(entry["codes"]), tuple(entry["descriptions"]))
