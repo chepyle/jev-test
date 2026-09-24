@@ -1,0 +1,521 @@
+<title>Jev LexGLUE Findings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root {
+  --bg: #f5f6f8;
+  --surface: #fcfcfb;
+  --ink: #0f1419;
+  --ink-2: #4f5663;
+  --muted: #7d838d;
+  --hair: #e1e3e8;
+  --axis: #c3c6cc;
+  --accent: #2a78d6;
+  --jev: #2a78d6;
+  --luna: #eb6834;
+  --bert: #1baf7a;
+  --good: #006300;
+  --bad: #b3261e;
+  --ring: rgba(15, 20, 25, 0.10);
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111315;
+    --surface: #1a1a19;
+    --ink: #f3f4f6;
+    --ink-2: #c3c6cc;
+    --muted: #8b9099;
+    --hair: #2c2e31;
+    --axis: #3a3d41;
+    --accent: #6ea6ee;
+    --jev: #3987e5;
+    --luna: #d95926;
+    --bert: #199e70;
+    --good: #3fbf3f;
+    --bad: #f08a80;
+    --ring: rgba(255, 255, 255, 0.10);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111315;
+  --surface: #1a1a19;
+  --ink: #f3f4f6;
+  --ink-2: #c3c6cc;
+  --muted: #8b9099;
+  --hair: #2c2e31;
+  --axis: #3a3d41;
+  --accent: #6ea6ee;
+  --jev: #3987e5;
+  --luna: #d95926;
+  --bert: #199e70;
+  --good: #3fbf3f;
+  --bad: #f08a80;
+  --ring: rgba(255, 255, 255, 0.10);
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.6 var(--sans);
+  padding-inline: 20px;
+  padding-block: 40px 64px;
+}
+main { max-width: 920px; margin: 0 auto; display: grid; gap: 56px; }
+header { display: grid; gap: 14px; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.1; font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h2 { font-size: 24px; line-height: 1.25; font-weight: 600; margin: 0; text-wrap: balance; }
+h3 { font-size: 17px; font-weight: 600; margin: 0; }
+p { margin: 0; max-width: 68ch; }
+.lede { font-size: 18px; color: var(--ink-2); max-width: 64ch; }
+section { display: grid; gap: 18px; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+a { color: var(--accent); }
+a:focus-visible, [tabindex]:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 16px; display: grid; gap: 6px; align-content: start; }
+.tile .label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
+.tile .value { font-size: 34px; font-weight: 600; line-height: 1.1; }
+.tile .value small { font-size: 15px; font-weight: 400; color: var(--muted); margin-left: 6px; }
+.tile .sub { font-size: 13px; color: var(--muted); }
+
+.findings { display: grid; gap: 12px; padding: 0; margin: 0; list-style: none; }
+.findings li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; }
+.findings li::before { content: ""; width: 10px; height: 10px; margin-top: 8px; border-radius: 50%; background: var(--dot, var(--muted)); }
+.findings .win { --dot: var(--good); }
+.findings .loss { --dot: var(--bad); }
+.findings .note { --dot: var(--muted); }
+.findings b { font-weight: 600; }
+
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 10px; padding: 20px; display: grid; gap: 14px; }
+.card-head { display: grid; gap: 4px; }
+.card-head p { font-size: 14px; color: var(--ink-2); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend svg { flex: none; }
+.chart { width: 100%; overflow-x: auto; }
+.chart svg { display: block; }
+.chart text { font-family: var(--sans); fill: var(--ink-2); font-size: 12px; }
+.chart .tick { fill: var(--muted); font-family: var(--mono); font-size: 11px; }
+.chart .grid { stroke: var(--hair); stroke-width: 1; }
+.chart .zero { stroke: var(--axis); stroke-width: 1.5; }
+.chart .mark { cursor: default; outline: none; }
+.chart .mark:hover .shape, .chart .mark:focus .shape { filter: brightness(1.15); }
+.chart .mark:focus .hit { stroke: var(--accent); stroke-width: 1.5; }
+
+details { font-size: 14px; }
+summary { cursor: pointer; color: var(--accent); width: max-content; }
+.table-wrap { overflow-x: auto; margin-top: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--hair); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 500; color: var(--ink-2); }
+td { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+td:first-child { font-family: var(--sans); }
+
+.pairs { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.pair-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 14px; }
+.pair-list li { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding-block: 6px; border-bottom: 1px solid var(--hair); }
+.pair-list .arrow { color: var(--muted); }
+.pair-list .n { font-family: var(--mono); color: var(--ink-2); }
+blockquote { margin: 0; padding-left: 14px; border-left: 2px solid var(--hair); color: var(--ink-2); font-size: 14px; display: grid; gap: 4px; }
+
+.caveats { display: grid; gap: 10px; padding-left: 18px; margin: 0; }
+.caveats li { max-width: 68ch; }
+.setup { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.setup .card { gap: 6px; }
+.setup .card .meta { font: 12px var(--mono); color: var(--muted); }
+footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
+
+#tip {
+  position: fixed; z-index: 10; pointer-events: none; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--ring); border-radius: 6px; padding: 8px 10px; font-size: 13px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12); max-width: 260px; display: grid; gap: 2px;
+}
+#tip .v { font: 600 15px var(--mono); }
+#tip .k { color: var(--ink-2); }
+@media (prefers-reduced-motion: no-preference) {
+  .chart .mark .shape { transition: filter 120ms; }
+}
+@media (max-width: 520px) {
+  body { font-size: 15px; }
+  .tile .value { font-size: 28px; }
+}
+</style>
+
+<main>
+  <header>
+    <div class="eyebrow">Zero-shot evaluation · LexGLUE + intent detection</div>
+    <h1>Jev on legal and intent classification</h1>
+    <p class="lede">TypeSafe's Jev answered every test question in LexGLUE's seven legal tasks without seeing a single training example. We compared it with GPT-5.6 Luna under the same instructions and with BERT fine-tuned on each task, then checked the pattern on two intent-detection benchmarks.</p>
+  </header>
+
+  <section aria-labelledby="summary-h">
+    <h2 id="summary-h">Summary</h2>
+    <div class="tiles" id="tiles"></div>
+    <ul class="findings" id="findings"></ul>
+  </section>
+
+  <section aria-labelledby="tasks-h">
+    <h2 id="tasks-h">Scores by task</h2>
+    <div class="card">
+      <div class="card-head">
+        <h3>Micro-F1 on each LexGLUE test split, with 95% bootstrap intervals</h3>
+        <p>Hollow circles show Jev after choosing multi-label thresholds on the validation split. Single-label tasks have no threshold, so they do not move.</p>
+      </div>
+      <div class="legend" id="legend-a"></div>
+      <div class="chart" id="chart-a" role="img" aria-label="Dot plot of micro-F1 by task for Jev, Jev tuned, Luna and BERT"></div>
+      <details><summary>Show table</summary><div class="table-wrap" id="table-a"></div></details>
+    </div>
+  </section>
+
+  <section aria-labelledby="paired-h">
+    <h2 id="paired-h">Jev against fine-tuned BERT, example by example</h2>
+    <p>Both models answered the same test documents, so each difference comes with a paired bootstrap interval. An interval that clears zero is a difference the test set can see; one that crosses zero is a tie.</p>
+    <div class="card">
+      <div class="card-head">
+        <h3>Jev minus BERT, micro-F1 points</h3>
+        <p>Right of zero, Jev scores higher. Filled: Jev at the default 0.5 threshold. Hollow: Jev with per-label thresholds from validation.</p>
+      </div>
+      <div class="legend" id="legend-b"></div>
+      <div class="chart" id="chart-b" role="img" aria-label="Paired differences between Jev and BERT by task"></div>
+      <details><summary>Show table</summary><div class="table-wrap" id="table-b"></div></details>
+    </div>
+  </section>
+
+  <section aria-labelledby="why-h">
+    <h2 id="why-h">Where the losses come from</h2>
+    <p>Jev's errors cluster on labels whose boundaries are conventions of the dataset rather than differences in meaning. A fine-tuned model learns these conventions from thousands of labeled examples; a zero-shot model sees only the label name.</p>
+    <div class="pairs">
+      <div class="card">
+        <div class="card-head"><h3>LEDGAR contract provisions</h3><p id="ledgar-sub"></p></div>
+        <ul class="pair-list" id="ledgar-pairs"></ul>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>BANKING77 customer intents</h3><p id="banking-sub"></p></div>
+        <ul class="pair-list" id="banking-pairs"></ul>
+        <blockquote id="pin-quotes"></blockquote>
+      </div>
+    </div>
+    <p>On the multi-label tasks, part of the gap was the threshold. Jev ranks the correct labels better than BERT on ECtHR A, ECtHR B and UNFAIR-ToS (macro ROC-AUC +0.015 each), but at the default 0.5 cut-off it predicts too many labels. Choosing one threshold per label on the validation split recovers most of that:</p>
+    <div class="card">
+      <div class="table-wrap" id="table-thr"></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="intents-h">
+    <h2 id="intents-h">The same pattern outside law</h2>
+    <p>BANKING77 and CLINC150 have fine-grained intents and published fine-tuned baselines. Jev trails on fine-grained intents, like LEDGAR, and beats fine-tuning at noticing that a request fits none of the intents, a judgment call like CaseHOLD.</p>
+    <div class="card">
+      <div class="card-head">
+        <h3>Jev zero-shot vs published fine-tuned BERT, percent</h3>
+        <p>Jev with 95% bootstrap intervals; the papers report single values. BANKING77: Casanueva et al. 2020, Table 3 (BERT-large). CLINC150: Larson et al. 2019, Table 2 (OOS+).</p>
+      </div>
+      <div class="legend" id="legend-c"></div>
+      <div class="chart" id="chart-c" role="img" aria-label="Bar chart of Jev and BERT on BANKING77 and CLINC150"></div>
+      <details><summary>Show table</summary><div class="table-wrap" id="table-c"></div></details>
+    </div>
+  </section>
+
+  <section aria-labelledby="setup-h">
+    <h2 id="setup-h">What was run</h2>
+    <div class="setup" id="setup"></div>
+  </section>
+
+  <section aria-labelledby="caveats-h">
+    <h2 id="caveats-h">Limits of these results</h2>
+    <ul class="caveats">
+      <li><b>Different training regimes.</b> BERT was fine-tuned on each task's training set. Jev and Luna saw no training examples.</li>
+      <li><b>Different protocols for Jev and Luna.</b> Jev answers through TypeSafe's System One endpoint with per-label probabilities. Luna, which that endpoint does not serve, answers the same questions as JSON text, so it has no probabilities and no tunable threshold. Some of the gap between them may come from the protocol.</li>
+      <li><b>Threshold tuning is Jev only.</b> It used validation data only, which the protocol allows, but Luna and BERT were not given an equivalent step.</li>
+      <li><b>One BERT seed.</b> The reproduction lands within 1.1 micro-F1 of the published five-seed means, so differences under about one point should not be read as real.</li>
+      <li><b>Published baselines for the intent benchmarks.</b> Those comparisons are not paired, and the BANKING77 baseline is BERT-large.</li>
+      <li><b>Possible training-data overlap.</b> Every dataset used here was public before these models were trained.</li>
+    </ul>
+  </section>
+
+  <footer id="footer"></footer>
+</main>
+<div id="tip" hidden></div>
+
+<script>
+const DATA = {"commit": "d255fec", "tasks": [{"task": "ecthr_a", "label": "ECtHR A", "multilabel": true, "jev": {"micro": 73.0, "macro": 71.3, "ci": [71.0, 74.9]}, "luna": {"micro": 78.9, "macro": 75.4, "ci": [76.9, 80.8]}, "bert": {"micro": 70.3, "macro": 61.9, "ci": [67.9, 72.6]}, "jev_tuned": {"micro": 74.3, "macro": 73.8}, "delta_bert": {"d": 2.7, "ci": [0.5, 4.8], "p": 0.011502551110428635}, "delta_bert_tuned": {"d": 4.0, "ci": [1.8, 6.4]}, "delta_luna": {"d": -5.9, "ci": [-7.4, -4.2]}, "thresholds": {"global": 0.65, "default": {"micro_f1": 73.0, "macro_f1": 71.3, "exact_match": 49.9}, "per_task": {"micro_f1": 74.0, "macro_f1": 70.6, "exact_match": 57.5}, "per_label": {"micro_f1": 74.3, "macro_f1": 73.8, "exact_match": 59.4}}}, {"task": "ecthr_b", "label": "ECtHR B", "multilabel": true, "jev": {"micro": 75.4, "macro": 72.6, "ci": [73.9, 76.7]}, "luna": {"micro": 78.8, "macro": 73.3, "ci": [77.4, 80.1]}, "bert": {"micro": 78.6, "macro": 72.5, "ci": [76.9, 80.1]}, "jev_tuned": {"micro": 80.0, "macro": 74.3}, "delta_bert": {"d": -3.2, "ci": [-4.9, -1.4], "p": 2.677903186990283e-13}, "delta_bert_tuned": {"d": 1.4, "ci": [-0.2, 3.1]}, "delta_luna": {"d": -3.4, "ci": [-4.5, -2.2]}, "thresholds": {"global": 0.75, "default": {"micro_f1": 75.4, "macro_f1": 72.6, "exact_match": 40.8}, "per_task": {"micro_f1": 80.2, "macro_f1": 75.5, "exact_match": 56.4}, "per_label": {"micro_f1": 80.0, "macro_f1": 74.3, "exact_match": 58.1}}}, {"task": "scotus", "label": "SCOTUS", "multilabel": false, "jev": {"micro": 72.6, "macro": 62.1, "ci": [70.1, 74.9]}, "luna": {"micro": 68.3, "macro": 59.7, "ci": [65.9, 70.5]}, "bert": {"micro": 67.2, "macro": 60.7, "ci": [64.9, 69.8]}, "jev_tuned": {"micro": 72.6, "macro": 62.1}, "delta_bert": {"d": 5.4, "ci": [2.5, 8.1], "p": 0.00031027699338222154}, "delta_bert_tuned": {"d": 5.4, "ci": [2.5, 8.1]}, "delta_luna": {"d": 4.3, "ci": [2.4, 6.3]}}, {"task": "eurlex", "label": "EUR-LEX", "multilabel": true, "jev": {"micro": 39.1, "macro": 37.0, "ci": [38.7, 39.4]}, "luna": {"micro": 42.9, "macro": 39.3, "ci": [42.4, 43.4]}, "bert": {"micro": 71.6, "macro": 56.5, "ci": [71.1, 72.1]}, "jev_tuned": {"micro": 47.9, "macro": 45.4}, "delta_bert": {"d": -32.5, "ci": [-33.1, -31.9], "p": 4.909093465297727e-91}, "delta_bert_tuned": {"d": -23.6, "ci": [-24.2, -23.1]}, "delta_luna": {"d": -3.9, "ci": [-4.3, -3.4]}, "thresholds": {"global": 0.7, "default": {"micro_f1": 39.1, "macro_f1": 37.0, "exact_match": 0.0}, "per_task": {"micro_f1": 39.4, "macro_f1": 35.1, "exact_match": 0.0}, "per_label": {"micro_f1": 47.9, "macro_f1": 45.4, "exact_match": 0.0}}}, {"task": "ledgar", "label": "LEDGAR", "multilabel": false, "jev": {"micro": 75.3, "macro": 63.3, "ci": [74.5, 76.1]}, "luna": {"micro": 74.7, "macro": 62.2, "ci": [73.8, 75.5]}, "bert": {"micro": 88.0, "macro": 82.4, "ci": [87.4, 88.6]}, "jev_tuned": {"micro": 75.3, "macro": 63.3}, "delta_bert": {"d": -12.7, "ci": [-13.5, -11.8], "p": 1.228340511130684e-193}, "delta_bert_tuned": {"d": -12.7, "ci": [-13.5, -11.8]}, "delta_luna": {"d": 0.7, "ci": [0.1, 1.3]}}, {"task": "unfair_tos", "label": "UNFAIR-ToS", "multilabel": true, "jev": {"micro": 76.4, "macro": 54.4, "ci": [74.5, 78.5]}, "luna": {"micro": 78.8, "macro": 60.9, "ci": [76.9, 80.7]}, "bert": {"micro": 95.2, "macro": 80.0, "ci": [94.1, 96.2]}, "jev_tuned": {"micro": 91.9, "macro": 67.9}, "delta_bert": {"d": -18.8, "ci": [-20.9, -16.7], "p": 5.320727559534854e-69}, "delta_bert_tuned": {"d": -3.3, "ci": [-4.8, -1.9]}, "delta_luna": {"d": -2.4, "ci": [-4.0, -0.8]}, "thresholds": {"global": 0.9, "default": {"micro_f1": 76.4, "macro_f1": 54.4, "exact_match": 75.2}, "per_task": {"micro_f1": 90.6, "macro_f1": 35.2, "exact_match": 90.7}, "per_label": {"micro_f1": 91.9, "macro_f1": 67.9, "exact_match": 91.4}}}, {"task": "case_hold", "label": "CaseHOLD", "multilabel": false, "jev": {"micro": 77.3, "macro": 77.3, "ci": [75.8, 78.7]}, "luna": {"micro": 76.8, "macro": 76.8, "ci": [75.5, 78.1]}, "bert": {"micro": 70.8, "macro": 70.8, "ci": [69.5, 72.3]}, "jev_tuned": {"micro": 77.3, "macro": 77.3}, "delta_bert": {"d": 6.5, "ci": [4.8, 8.0], "p": 5.428188615244636e-15}, "delta_bert_tuned": {"d": 6.5, "ci": [4.8, 8.0]}, "delta_luna": {"d": 0.5, "ci": [-0.9, 1.9]}}], "means": {"jev": {"micro": 69.9, "macro": 62.6}, "jev_tuned": {"micro": 74.2, "macro": 66.3}, "luna": {"micro": 71.3, "macro": 63.9}, "bert": {"micro": 77.4, "macro": 69.3}}, "costs": {"jev": 4.02, "luna": 16.45, "jev_validation": 2.47, "intents": 0.78, "bert_gpu": 21.58}, "confusions": {"ledgar": {"errors": 2468, "pairs": [["Waivers", "No Waivers", 98], ["Withholdings", "Tax Withholdings", 94], ["Definitions", "Defined Terms", 76], ["Organizations", "Existence", 56], ["Governing Laws", "Submission To Jurisdiction", 55]]}, "banking77": {"errors": 596, "pairs": [["get physical card", "change pin", 30], ["order physical card", "get physical card", 27], ["beneficiary not allowed", "failed transfer", 18], ["direct debit payment not recognised", "card payment not recognised", 16]]}, "pin_examples": ["What do I do with my card PIN?", "I do not have my pin", "Are PIN separately?"]}, "intents": {"banking77": {"n": 3080, "acc": 80.6, "ci": [79.3, 81.9], "bert_full": 93.66, "bert_10shot": 83.42, "bert_30shot": 90.03}, "clinc150": {"n": 5500, "in_scope": 89.0, "in_scope_ci": [88.2, 89.9], "oos_recall": 88.1, "oos_ci": [86.1, 90.1], "oos_precision": 81.9, "bert_in_scope": 96.7, "bert_oos_recall": 59.2, "best_oos_recall": 66.0}}};
+const SVGNS = "http://www.w3.org/2000/svg";
+const MODELS = {
+  jev: { name: "Jev", color: "var(--jev)", shape: "circle" },
+  jev_tuned: { name: "Jev, tuned thresholds", color: "var(--jev)", shape: "ring" },
+  luna: { name: "GPT-5.6 Luna", color: "var(--luna)", shape: "square" },
+  bert: { name: "BERT, fine-tuned", color: "var(--bert)", shape: "triangle" },
+};
+
+function el(tag, attrs = {}, parent) {
+  const node = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  if (parent) parent.appendChild(node);
+  return node;
+}
+function h(tag, text, cls) {
+  const node = document.createElement(tag);
+  if (text !== undefined) node.textContent = text;
+  if (cls) node.className = cls;
+  return node;
+}
+function fmt(x, signed) { return (signed && x > 0 ? "+" : "") + x.toFixed(1); }
+
+function shape(g, kind, x, y, color, size = 5) {
+  let s;
+  if (kind === "circle") s = el("circle", { cx: x, cy: y, r: size, fill: color, stroke: "var(--surface)", "stroke-width": 2 }, g);
+  else if (kind === "ring") s = el("circle", { cx: x, cy: y, r: size, fill: "var(--surface)", stroke: color, "stroke-width": 2 }, g);
+  else if (kind === "square") s = el("rect", { x: x - size, y: y - size, width: size * 2, height: size * 2, rx: 1.5, fill: color, stroke: "var(--surface)", "stroke-width": 2 }, g);
+  else s = el("path", { d: `M${x},${y - size - 1} L${x + size + 1},${y + size} L${x - size - 1},${y + size} Z`, fill: color, stroke: "var(--surface)", "stroke-width": 2, "stroke-linejoin": "round" }, g);
+  s.classList.add("shape");
+  return s;
+}
+function legend(id, keys) {
+  const box = document.getElementById(id);
+  for (const k of keys) {
+    const item = h("span");
+    const svg = el("svg", { width: 16, height: 16, viewBox: "0 0 16 16", "aria-hidden": "true" });
+    shape(svg, MODELS[k].shape, 8, 8, MODELS[k].color, 5);
+    item.append(svg, document.createTextNode(MODELS[k].name));
+    box.appendChild(item);
+  }
+}
+
+const tip = document.getElementById("tip");
+function attachTip(g, lines) {
+  g.setAttribute("tabindex", "0");
+  g.classList.add("mark");
+  const show = (evt) => {
+    tip.replaceChildren();
+    tip.appendChild(h("div", lines[0], "v"));
+    for (const line of lines.slice(1)) tip.appendChild(h("div", line, "k"));
+    tip.hidden = false;
+    const r = evt && evt.clientX !== undefined ? { x: evt.clientX, y: evt.clientY } : (() => { const b = g.getBoundingClientRect(); return { x: b.right, y: b.top }; })();
+    const w = tip.offsetWidth, hgt = tip.offsetHeight;
+    tip.style.left = Math.min(window.innerWidth - w - 8, r.x + 14) + "px";
+    tip.style.top = Math.max(8, r.y - hgt - 10) + "px";
+  };
+  g.addEventListener("pointermove", show);
+  g.addEventListener("focus", show);
+  g.addEventListener("pointerleave", () => { tip.hidden = true; });
+  g.addEventListener("blur", () => { tip.hidden = true; });
+}
+
+function axis(svg, x, domain, step, top, bottom, left, right, suffix = "") {
+  for (let v = domain[0]; v <= domain[1] + 1e-9; v += step) {
+    const px = x(v);
+    el("line", { x1: px, x2: px, y1: top, y2: bottom, class: v === 0 ? "zero" : "grid" }, svg);
+    const t = el("text", { x: px, y: bottom + 16, "text-anchor": "middle", class: "tick" }, svg);
+    t.textContent = (v > 0 && suffix === "±" ? "+" : "") + v;
+  }
+}
+
+function table(id, head, rows) {
+  const t = h("table");
+  const thead = h("thead"); const tr = h("tr");
+  head.forEach((c) => tr.appendChild(h("th", c)));
+  thead.appendChild(tr); t.appendChild(thead);
+  const tb = h("tbody");
+  rows.forEach((r) => { const row = h("tr"); r.forEach((c) => row.appendChild(h("td", String(c)))); tb.appendChild(row); });
+  t.appendChild(tb);
+  document.getElementById(id).appendChild(t);
+}
+
+function chartA() {
+  const box = document.getElementById("chart-a");
+  const W = Math.max(560, box.clientWidth), band = 58, top = 8, left = 98, right = 16;
+  const H = top + DATA.tasks.length * band + 28;
+  const svg = el("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+  const domain = [30, 100];
+  const x = (v) => left + ((v - domain[0]) / (domain[1] - domain[0])) * (W - left - right);
+  axis(svg, x, domain, 10, top, top + DATA.tasks.length * band, left, right);
+  DATA.tasks.forEach((t, i) => {
+    const cy = top + i * band + band / 2;
+    const lab = el("text", { x: 0, y: cy + 4, "font-weight": 500 }, svg);
+    lab.textContent = t.label;
+    [["jev", -14], ["luna", 0], ["bert", 14]].forEach(([m, dy]) => {
+      const d = t[m], y = cy + dy, g = el("g", {}, svg);
+      el("line", { x1: x(d.ci[0]), x2: x(d.ci[1]), y1: y, y2: y, stroke: MODELS[m].color, "stroke-width": 2, "stroke-linecap": "round", opacity: 0.55 }, g);
+      el("rect", { x: x(d.ci[0]) - 6, y: y - 7, width: x(d.ci[1]) - x(d.ci[0]) + 12, height: 14, fill: "transparent", class: "hit", rx: 3 }, g);
+      shape(g, MODELS[m].shape, x(d.micro), y, MODELS[m].color);
+      attachTip(g, [`${fmt(d.micro)} micro-F1`, `${MODELS[m].name} · ${t.label}`, `95% CI ${fmt(d.ci[0])} to ${fmt(d.ci[1])}`, `macro-F1 ${fmt(d.macro)}`]);
+    });
+    if (t.multilabel) {
+      const y = cy - 14, g = el("g", {}, svg);
+      el("line", { x1: x(t.jev.micro), x2: x(t.jev_tuned.micro), y1: y, y2: y, stroke: "var(--jev)", "stroke-width": 1 }, g);
+      el("rect", { x: x(t.jev_tuned.micro) - 9, y: y - 9, width: 18, height: 18, fill: "transparent", class: "hit", rx: 9 }, g);
+      shape(g, "ring", x(t.jev_tuned.micro), y, "var(--jev)");
+      attachTip(g, [`${fmt(t.jev_tuned.micro)} micro-F1`, `Jev, per-label thresholds · ${t.label}`, `was ${fmt(t.jev.micro)} at 0.5`, `macro-F1 ${fmt(t.jev_tuned.macro)}`]);
+    }
+  });
+  box.appendChild(svg);
+  legend("legend-a", ["jev", "jev_tuned", "luna", "bert"]);
+  table("table-a", ["Task", "Jev", "Jev tuned", "Luna", "BERT", "Jev 95% CI"],
+    DATA.tasks.map((t) => [t.label, fmt(t.jev.micro), fmt(t.jev_tuned.micro), fmt(t.luna.micro), fmt(t.bert.micro), `${fmt(t.jev.ci[0])} to ${fmt(t.jev.ci[1])}`])
+      .concat([["Mean of 7 tasks", fmt(DATA.means.jev.micro), fmt(DATA.means.jev_tuned.micro), fmt(DATA.means.luna.micro), fmt(DATA.means.bert.micro), ""]]));
+}
+
+function chartB() {
+  const box = document.getElementById("chart-b");
+  const W = Math.max(560, box.clientWidth), band = 44, top = 24, left = 98, right = 16;
+  const H = top + DATA.tasks.length * band + 28;
+  const svg = el("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+  const domain = [-35, 10];
+  const x = (v) => left + ((v - domain[0]) / (domain[1] - domain[0])) * (W - left - right);
+  axis(svg, x, domain, 5, top, top + DATA.tasks.length * band, left, right, "±");
+  const lb = el("text", { x: x(0) - 8, y: 12, "text-anchor": "end", class: "tick" }, svg); lb.textContent = "BERT higher";
+  const lj = el("text", { x: x(0) + 8, y: 12, class: "tick" }, svg); lj.textContent = "Jev higher";
+  DATA.tasks.forEach((t, i) => {
+    const cy = top + i * band + band / 2;
+    const lab = el("text", { x: 0, y: cy + 4, "font-weight": 500 }, svg); lab.textContent = t.label;
+    [["delta_bert", -7, "circle", "0.5 threshold"], ["delta_bert_tuned", 7, "ring", "per-label thresholds"]].forEach(([k, dy, kind, name]) => {
+      if (k === "delta_bert_tuned" && !t.multilabel) return;
+      const d = t[k], y = cy + (t.multilabel ? dy : 0), g = el("g", {}, svg);
+      el("line", { x1: x(d.ci[0]), x2: x(d.ci[1]), y1: y, y2: y, stroke: "var(--jev)", "stroke-width": 2, "stroke-linecap": "round", opacity: 0.55 }, g);
+      el("rect", { x: x(d.ci[0]) - 6, y: y - 7, width: x(d.ci[1]) - x(d.ci[0]) + 12, height: 14, fill: "transparent", class: "hit", rx: 3 }, g);
+      shape(g, kind, x(d.d), y, "var(--jev)");
+      const verdict = d.ci[0] > 0 ? "Jev higher" : d.ci[1] < 0 ? "BERT higher" : "no clear difference";
+      attachTip(g, [`${fmt(d.d, true)} points`, `${t.label} · Jev ${name}`, `95% CI ${fmt(d.ci[0], true)} to ${fmt(d.ci[1], true)}`, verdict]);
+    });
+  });
+  box.appendChild(svg);
+  const lg = document.getElementById("legend-b");
+  [["circle", "Jev at 0.5 threshold"], ["ring", "Jev, per-label thresholds (multi-label tasks)"]].forEach(([kind, name]) => {
+    const item = h("span"); const s = el("svg", { width: 16, height: 16, viewBox: "0 0 16 16", "aria-hidden": "true" });
+    shape(s, kind, 8, 8, "var(--jev)"); item.append(s, document.createTextNode(name)); lg.appendChild(item);
+  });
+  table("table-b", ["Task", "Jev − BERT at 0.5", "95% CI", "Tuned Jev − BERT", "95% CI", "Jev − Luna", "95% CI"],
+    DATA.tasks.map((t) => [t.label, fmt(t.delta_bert.d, true), `${fmt(t.delta_bert.ci[0], true)} to ${fmt(t.delta_bert.ci[1], true)}`,
+      t.multilabel ? fmt(t.delta_bert_tuned.d, true) : "same", t.multilabel ? `${fmt(t.delta_bert_tuned.ci[0], true)} to ${fmt(t.delta_bert_tuned.ci[1], true)}` : "",
+      fmt(t.delta_luna.d, true), `${fmt(t.delta_luna.ci[0], true)} to ${fmt(t.delta_luna.ci[1], true)}`]));
+}
+
+function chartC() {
+  const I = DATA.intents;
+  const rows = [
+    { group: "BANKING77", metric: "Accuracy", jev: I.banking77.acc, ci: I.banking77.ci, bert: I.banking77.bert_full },
+    { group: "CLINC150", metric: "In-scope accuracy", jev: I.clinc150.in_scope, ci: I.clinc150.in_scope_ci, bert: I.clinc150.bert_in_scope },
+    { group: "CLINC150", metric: "Out-of-scope recall", jev: I.clinc150.oos_recall, ci: I.clinc150.oos_ci, bert: I.clinc150.bert_oos_recall },
+  ];
+  const box = document.getElementById("chart-c");
+  const W = Math.max(560, box.clientWidth), band = 76, top = 8, left = 150, right = 56, bar = 18;
+  const H = top + rows.length * band + 28;
+  const svg = el("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+  const x = (v) => left + (v / 100) * (W - left - right);
+  axis(svg, x, [0, 100], 20, top, top + rows.length * band, left, right);
+  rows.forEach((r, i) => {
+    const y0 = top + i * band + (band - 2 * bar - 4) / 2;
+    const g1 = el("text", { x: 0, y: y0 + bar - 2, "font-weight": 500 }, svg); g1.textContent = r.group;
+    const g2 = el("text", { x: 0, y: y0 + 2 * bar + 2, class: "tick" }, svg); g2.textContent = r.metric;
+    [["jev", y0, r.jev], ["bert", y0 + bar + 4, r.bert]].forEach(([m, y, v]) => {
+      const g = el("g", {}, svg), end = x(v), base = x(0);
+      el("path", { d: `M${base},${y} H${end - 4} Q${end},${y} ${end},${y + 4} V${y + bar - 4} Q${end},${y + bar} ${end - 4},${y + bar} H${base} Z`, fill: MODELS[m].color, class: "shape" }, g);
+      if (m === "jev") el("line", { x1: x(r.ci[0]), x2: x(r.ci[1]), y1: y + bar / 2, y2: y + bar / 2, stroke: "var(--ink)", "stroke-width": 1.5, opacity: 0.6 }, g);
+      el("rect", { x: base, y: y - 2, width: end - base + 40, height: bar + 4, fill: "transparent", class: "hit", rx: 3 }, g);
+      const lab = el("text", { x: Math.max(end, m === "jev" ? x(r.ci[1]) : end) + 6, y: y + bar - 5, class: "tick" }, g);
+      lab.textContent = v.toFixed(1);
+      const lines = [`${v.toFixed(1)}%`, `${MODELS[m].name} · ${r.group} ${r.metric.toLowerCase()}`];
+      if (m === "jev") lines.push(`95% CI ${fmt(r.ci[0])} to ${fmt(r.ci[1])}`); else lines.push("published value, no interval");
+      attachTip(g, lines);
+    });
+  });
+  box.appendChild(svg);
+  const lg = document.getElementById("legend-c");
+  [["jev", "Jev, zero-shot"], ["bert", "BERT, fine-tuned (published)"]].forEach(([m, name]) => {
+    const item = h("span"); const s = el("svg", { width: 16, height: 16, viewBox: "0 0 16 16", "aria-hidden": "true" });
+    el("rect", { x: 1, y: 3, width: 14, height: 10, rx: 2, fill: MODELS[m].color }, s); item.append(s, document.createTextNode(name)); lg.appendChild(item);
+  });
+  table("table-c", ["Benchmark", "Metric", "Jev", "Jev 95% CI", "BERT (published)"],
+    rows.map((r) => [r.group, r.metric, fmt(r.jev), `${fmt(r.ci[0])} to ${fmt(r.ci[1])}`, r.bert.toFixed(r.bert % 1 ? (String(r.bert).split(".")[1].length) : 1)]));
+}
+
+function summary() {
+  const M = DATA.means;
+  const tiles = [
+    ["jev", "Jev, default threshold", M.jev, `$${DATA.costs.jev.toFixed(2)} for 23,607 questions`],
+    ["jev_tuned", "Jev, thresholds from validation", M.jev_tuned, `+$${DATA.costs.jev_validation.toFixed(2)} validation run`],
+    ["luna", "GPT-5.6 Luna", M.luna, `$${DATA.costs.luna.toFixed(2)} for 23,607 questions`],
+    ["bert", "BERT, fine-tuned", M.bert, `$${DATA.costs.bert_gpu.toFixed(2)} of GPU time to train`],
+  ];
+  const box = document.getElementById("tiles");
+  tiles.forEach(([k, label, m, sub]) => {
+    const t = h("div", undefined, "tile");
+    const l = h("div", undefined, "label");
+    const s = el("svg", { width: 14, height: 14, viewBox: "0 0 16 16", "aria-hidden": "true" });
+    shape(s, MODELS[k].shape, 8, 8, MODELS[k].color, 5);
+    l.append(s, document.createTextNode(label));
+    const v = h("div", undefined, "value"); v.textContent = m.micro.toFixed(1);
+    const small = h("small", `/ ${m.macro.toFixed(1)}`); v.appendChild(small);
+    t.append(l, v, h("div", "mean micro / macro-F1, 7 tasks", "sub"), h("div", sub, "sub"));
+    box.appendChild(t);
+  });
+  const T = Object.fromEntries(DATA.tasks.map((t) => [t.task, t]));
+  const I = DATA.intents;
+  const items = [
+    ["win", `Zero-shot Jev beats fine-tuned BERT on CaseHOLD (${fmt(T.case_hold.delta_bert.d, true)} points), SCOTUS (${fmt(T.scotus.delta_bert.d, true)}) and ECtHR A (${fmt(T.ecthr_a.delta_bert.d, true)}), with paired intervals clear of zero.`],
+    ["loss", `It trails BERT on EUR-LEX (${fmt(T.eurlex.delta_bert.d, true)}), UNFAIR-ToS (${fmt(T.unfair_tos.delta_bert.d, true)}) and LEDGAR (${fmt(T.ledgar.delta_bert.d, true)}): tasks with many labels whose boundaries are dataset conventions.`],
+    ["win", `Choosing Jev's multi-label thresholds on the validation split cuts the average gap to BERT from ${fmt(M.bert.micro - M.jev.micro)} to ${fmt(M.bert.micro - M.jev_tuned.micro)} micro-F1 points, and turns ECtHR B from a loss into a tie.`],
+    ["note", `Jev and Luna are close: ${fmt(M.jev.micro)} and ${fmt(M.luna.micro)} average micro-F1 untuned. Luna leads on four tasks, Jev on two, and CaseHOLD is a tie.`],
+    ["note", `Outside law the pattern repeats: Jev trails fine-tuning on fine-grained intents (BANKING77 ${fmt(I.banking77.acc)} vs ${I.banking77.bert_full}) but finds out-of-scope requests far better (CLINC150 recall ${fmt(I.clinc150.oos_recall)} vs ${I.clinc150.bert_oos_recall}).`],
+  ];
+  const ul = document.getElementById("findings");
+  items.forEach(([cls, text]) => { const li = h("li", undefined, cls); li.appendChild(h("span", text)); ul.appendChild(li); });
+}
+
+function why() {
+  const C = DATA.confusions;
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const fill = (id, pairs) => {
+    const ul = document.getElementById(id);
+    pairs.forEach(([g, p, n]) => {
+      const li = h("li");
+      const left = h("span"); left.append(document.createTextNode(cap(g)), h("span", "  →  ", "arrow"), document.createTextNode(cap(p)));
+      li.append(left, h("span", `${n}`, "n"));
+      ul.appendChild(li);
+    });
+  };
+  document.getElementById("ledgar-sub").textContent = `Most frequent of ${C.ledgar.errors.toLocaleString()} errors on 10,000 provisions. Correct label → Jev's answer.`;
+  document.getElementById("banking-sub").textContent = `Most frequent of ${C.banking77.errors} errors on 3,080 queries. Correct label → Jev's answer.`;
+  fill("ledgar-pairs", C.ledgar.pairs);
+  fill("banking-pairs", C.banking77.pairs);
+  const q = document.getElementById("pin-quotes");
+  q.appendChild(h("span", "Queries the annotators filed under “get physical card”:"));
+  C.pin_examples.forEach((t) => q.appendChild(h("span", `“${t}”`)));
+  table("table-thr", ["Task", "Threshold 0.5", "One per task", "One per label", "BERT"],
+    DATA.tasks.filter((t) => t.multilabel).map((t) => [t.label,
+      `${fmt(t.thresholds.default.micro_f1)} / ${fmt(t.thresholds.default.macro_f1)}`,
+      `${fmt(t.thresholds.per_task.micro_f1)} / ${fmt(t.thresholds.per_task.macro_f1)} (${t.thresholds.global.toFixed(2)})`,
+      `${fmt(t.thresholds.per_label.micro_f1)} / ${fmt(t.thresholds.per_label.macro_f1)}`,
+      `${fmt(t.bert.micro)} / ${fmt(t.bert.macro)}`]));
+  const cap2 = h("p"); cap2.style.fontSize = "13px"; cap2.style.color = "var(--muted)";
+  cap2.textContent = "Micro-F1 / macro-F1 on test. One threshold per task (the pre-registered primary) helps micro-F1 but hurts macro-F1 on UNFAIR-ToS; one per label improves both.";
+  document.getElementById("table-thr").appendChild(cap2);
+}
+
+function setup() {
+  const C = DATA.costs;
+  const cards = [
+    ["Jev", "typesafe/jev-1.13-20260917 · System One typed decisions", `23,607 LexGLUE test questions · $${C.jev.toFixed(2)}`],
+    ["GPT-5.6 Luna", "openai/gpt-5.6-luna · chat completions, strict JSON schema", `23,607 LexGLUE test questions · $${C.luna.toFixed(2)}`],
+    ["BERT-base, fine-tuned", "coastalcph/lex-glue scripts, seed 1, A100 on Modal", `7 tasks · $${C.bert_gpu.toFixed(2)} GPU · within 1.1 of published means`],
+    ["Validation run", "Jev on 4 multi-label validation splits, for thresholds", `9,275 questions · $${C.jev_validation.toFixed(2)}`],
+    ["Intent benchmarks", "BANKING77 and CLINC150 (OOS+), Jev zero-shot", `8,580 questions · $${C.intents.toFixed(2)}`],
+  ];
+  const box = document.getElementById("setup");
+  cards.forEach(([t, m, s]) => { const c = h("div", undefined, "card"); c.append(h("h3", t), h("div", m, "meta"), h("div", s)); box.appendChild(c); });
+  const f = document.getElementById("footer");
+  const p1 = h("p"); p1.append(document.createTextNode("Source, data manifests, per-example analysis and full tables: "));
+  const a = h("a", "github.com/chepyle/jev-test"); a.href = "https://github.com/chepyle/jev-test"; p1.appendChild(a);
+  p1.appendChild(document.createTextNode(` (results as of commit ${DATA.commit}; see RESULTS.md).`));
+  f.append(p1, h("p", "Intervals are 95% bootstrap intervals over test examples, 1,000 resamples, seed 0. F1 values are shown as percentages."));
+}
+
+summary(); chartA(); chartB(); why(); chartC(); setup();
+</script>

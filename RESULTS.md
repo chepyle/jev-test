@@ -340,7 +340,7 @@ baselines. Jev only; baselines are the papers' numbers, so there is **no paired 
 
 | Benchmark | Metric | Jev zero-shot [95% CI] | Fine-tuned BERT (published) |
 |---|---|---|---:|
-| BANKING77 | accuracy | 80.7 [79.3, 81.9] | 93.66 full; 90.03 at 30/intent; 83.42 at 10/intent |
+| BANKING77 | accuracy | 80.6 [79.3, 81.9] | 93.66 full; 90.03 at 30/intent; 83.42 at 10/intent |
 | CLINC150 | in-scope accuracy | 89.0 [88.2, 89.9] | 96.7 |
 | CLINC150 | out-of-scope recall | **88.1** [86.1, 90.1] | 59.2 (best in that column: Rasa, 66.0) |
 
