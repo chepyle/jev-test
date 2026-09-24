@@ -286,3 +286,11 @@ comparisons. `assets/labels.json` includes label-source attribution.
   `078092d62633ab1fc85065cc5937e60edd805095`.
 - [OpenRouter System One integration](https://openrouter.ai/docs/guides/community/typesafe-sdk)
   and [TypeSafe primitives](https://docs.typesafe.ai/primitives) define the API contract.
+
+## License
+
+Code in this repository is licensed under the [Apache License 2.0](LICENSE). Label names and
+descriptions bundled in `src/jev_test/assets/` come from LexGLUE (CC BY 4.0), MultiEURLEX
+EuroVoc descriptors (CC BY-SA 4.0), BANKING77 (CC BY 4.0), and CLINC150 (CC BY 3.0), and remain
+under those terms; see [NOTICE](NOTICE). Benchmark datasets are downloaded at run time, not
+redistributed.
