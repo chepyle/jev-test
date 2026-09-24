@@ -319,3 +319,51 @@ Findings:
   mean gap shrinks from 7.5 to 3.2 μ-F1 and from 6.7 to 3.0 m-F1.
 - The Jev-vs-Luna and Jev-vs-BERT tables above use the 0.5 default and remain the zero-tuning
   comparison. Luna 71.3 / 63.9 falls between Jev at 0.5 and Jev with per-label thresholds.
+
+## Corroboration outside law: intent detection (BANKING77, CLINC150)
+
+Purpose: test the LEDGAR explanation (zero-shot errors cluster on fine-grained labels whose
+boundaries are annotation conventions) on non-legal benchmarks with published fine-tuned
+baselines. Jev only; baselines are the papers' numbers, so there is **no paired test**.
+
+- Run: `typesafe/jev-1.13` (resolved `jev-1.13-20260917`), System One choice question over
+  all intents, 8,580 / 8,580 test examples, 0 failures, 0 retries, $0.78 (projected $0.78
+  from n=50/task).
+- Data: BANKING77 from PolyAI-LDN/task-specific-datasets@57ec275 (SHA-256-checked CSVs; the
+  Hub repo is only a loading script), 3,080 test queries, 40 per intent. CLINC150
+  `clinc/clinc_oos@155b9c7`, config `plus` (the paper's OOS+), 4,500 in-scope + 1,000
+  out-of-scope. Label descriptions are the intent codes with underscores as spaces; `oos` is
+  "out of scope (the request fits none of the other intents)".
+- Baselines, read from the papers' tables: BANKING77, Casanueva et al. (2020) Table 3,
+  BERT-TUNED (BERT-large); CLINC150, Larson et al. (2019) Table 2, BERT, oos-train, OOS+.
+  Neither reports intervals.
+
+| Benchmark | Metric | Jev zero-shot [95% CI] | Fine-tuned BERT (published) |
+|---|---|---|---:|
+| BANKING77 | accuracy | 80.7 [79.3, 81.9] | 93.66 full; 90.03 at 30/intent; 83.42 at 10/intent |
+| CLINC150 | in-scope accuracy | 89.0 [88.2, 89.9] | 96.7 |
+| CLINC150 | out-of-scope recall | **88.1** [86.1, 90.1] | 59.2 (best in that column: Rasa, 66.0) |
+
+Jev also: BANKING77 macro-F1 79.8, Cohen's κ 0.804, top-3 accuracy 91.4, ECE 0.089;
+CLINC150 overall accuracy 88.9, κ 0.884, top-3 97.2, ECE 0.027, out-of-scope precision 81.9
+(`analysis/intents-test.json`). The paper reports no out-of-scope precision, so the recall
+gain cannot be priced against false out-of-scope calls on the BERT side.
+
+Findings:
+
+- **Same direction as LEDGAR.** Fine-grained single-domain intents trail fine-tuning by 13.0
+  points (BANKING77), close to LEDGAR's 12.7; CLINC150's coarser multi-domain intents trail by
+  7.7. Jev on BANKING77 falls below BERT trained on 10 examples per intent (−2.8).
+- **The errors are label conventions again.** The largest BANKING77 confusion (30 of 596
+  errors) is `get_physical_card` read as `change_pin`, on queries such as "I do not have my
+  pin" and "How do I set-up my PIN for the new card?", which the annotators filed under
+  getting a physical card. On CLINC150 the top pairs are `reminder_update`→`reminder` and
+  `change_user_name`→`user_name`. The top 8 pairs account for 23% and 22% of errors.
+- **Out-of-scope detection reverses the gap: +28.9 recall over BERT.** Recognizing that a
+  request fits none of 150 intents takes judgment that 250 out-of-scope training queries do
+  not teach well; the paper calls out-of-scope recall "much lower than in-scope across all
+  methods". This parallels Jev's LexGLUE wins on CaseHOLD and SCOTUS. Cost: some in-scope
+  queries go to out-of-scope (`change_accent` 20, `cancel` 17, `no` 16).
+- Caveats: published baselines, not paired runs; BERT-large for BANKING77 vs our BERT-base
+  reproduction for LexGLUE; both datasets are public since 2019 to 2020, so training-data
+  overlap cannot be excluded.

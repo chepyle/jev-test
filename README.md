@@ -25,7 +25,10 @@ Full test split (23,607 examples), zero-shot, micro-F1 arithmetic mean across th
 The two zero-shot models are close: Luna is ahead on ECtHR A/B, EUR-LEX, and UNFAIR-ToS, Jev on
 SCOTUS and LEDGAR, and CaseHOLD is a tie. Both beat fine-tuned BERT on CaseHOLD and trail it by
 13 to 29 points on EUR-LEX, LEDGAR, and UNFAIR-ToS. Choosing Jev's per-label thresholds on the
-validation split (no test data, no training examples) cuts its gap to BERT from 7.5 to 3.2 μ-F1. [`RESULTS.md`](RESULTS.md) has per-task
+validation split (no test data, no training examples) cuts its gap to BERT from 7.5 to 3.2 μ-F1.
+Outside law, Jev trails published fine-tuned BERT on fine-grained intents (BANKING77 80.7 vs
+93.7 accuracy; CLINC150 in-scope 89.0 vs 96.7) but finds out-of-scope requests far better
+(CLINC150 recall 88.1 vs 59.2). [`RESULTS.md`](RESULTS.md) has per-task
 intervals, kappa, calibration, paired tests, and caveats, including the protocol difference.
 
 ## Quick start
