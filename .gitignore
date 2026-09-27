@@ -21,3 +21,6 @@ results/
 
 # longrun job state (launcher script jobs/launch.py is tracked)
 jobs/*/
+
+# Pinned external checkouts (commit recorded in RESULTS.md)
+third_party/

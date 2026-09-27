@@ -216,6 +216,24 @@ that failed validation. It is `null` if no costs were returned, and is not a bil
 for missing or retried responses. Latency includes client retries/backoff; concurrency affects
 it, so it should not be interpreted as isolated model inference latency.
 
+## Kev's suites
+
+`kev_suites/` scores Jev and GPT-5.6 Luna on [Kev](https://github.com/jaredpalmer/kev)'s
+frozen `transfer-v4` and `decision-v7` suites with Kev's own scorer, next to Kev-4B's published
+numbers ([`RESULTS.md`](RESULTS.md#keys-suites-jev-and-luna-on-the-kev-benchmark-with-kev-4bs-published-numbers)).
+Kev is cloned at a pinned commit into the git-ignored `third_party/`. Luna goes through
+`jev_test.chatshim`, a local System One endpoint backed by chat JSON, which caches answers so a
+rerun makes no new calls.
+
+```bash
+git clone https://github.com/jaredpalmer/kev third_party/kev && git -C third_party/kev checkout 5920c5f
+(cd third_party/kev && uv sync --locked)
+kev_suites/run_jev.sh
+uv run python -m jev_test.chatshim --model openai/gpt-5.6-luna --cache results/kev-suites/luna-cache &
+kev_suites/run_luna.sh
+uv run python kev_suites/summarize.py > analysis/kev-suites.md
+```
+
 ## Fine-tuned BERT baseline
 
 `bert/` reproduces the LexGLUE BERT-base baseline with the upstream
