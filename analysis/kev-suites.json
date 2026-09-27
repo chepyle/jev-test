@@ -1,5 +1,5 @@
 {
-  "protocol": "Reads `results/kev-suites/<model>-<suite>-<split>/{report,rows}.json` written by `kev.benchmark`, and Kev-4B's release/locked-test reports from `third_party/kev/runs`. Point estimates are Kev's own (`report.json` \"clean\" block). Intervals: 95% bootstrap over record groups (a contrastive pair resamples together), 1000 resamples, seed 0. Paired differences use the same resampled groups for both models. Kev-4B has no public per-row predictions, so it has point estimates only and no paired test.",
+  "protocol": "Reads `results/kev-suites/<model>-<suite>-<split>/{report,rows}.json` written by `kev.benchmark`, and Kev-4B's published release/locked-test reports from `third_party/kev/runs` as a check on our served Kev-4B. Point estimates are Kev's own (`report.json` \"clean\" block). Intervals: 95% bootstrap over record groups (a contrastive pair resamples together), 1000 resamples, seed 0. Paired differences use the same resampled groups for both models.",
   "splits": {
     "transfer-v4-dev": {
       "n_questions": 656,
@@ -83,8 +83,8 @@
           },
           "acc": 0.8810975609756098,
           "acc_ci": [
-            0.8555849259436216,
-            0.9061137760804769
+            0.8540342269699918,
+            0.9068081752073628
           ],
           "ece": 0.11890243902439024,
           "brier": 0.23780487804878048,
@@ -136,13 +136,86 @@
               "acc": 0.7875
             }
           }
+        },
+        "kev4b": {
+          "served_model": "kev-latest",
+          "coverage": {
+            "requested_records": 764,
+            "requested_questions": 764,
+            "evaluated_records": 764,
+            "evaluated_questions": 764,
+            "rejected_records": 0,
+            "truncated_records": 0
+          },
+          "acc": 0.8140243902439024,
+          "acc_ci": [
+            0.7787844298558585,
+            0.8454436259565437
+          ],
+          "ece": 0.0368588686016694,
+          "brier": 0.24323337326443514,
+          "nll": 0.4351719548760701,
+          "confident_error_rate": 0.009146341463414634,
+          "by_source": {
+            "composition_held_and_or": {
+              "n": 32,
+              "acc": 1.0
+            },
+            "composition_held_conditional": {
+              "n": 32,
+              "acc": 1.0
+            },
+            "composition_held_or_not": {
+              "n": 32,
+              "acc": 0.9375
+            },
+            "contrastive_authorization": {
+              "n": 40,
+              "acc": 1.0
+            },
+            "contrastive_deadline": {
+              "n": 40,
+              "acc": 0.625
+            },
+            "emotion": {
+              "n": 80,
+              "acc": 0.55
+            },
+            "mmlu": {
+              "n": 80,
+              "acc": 0.7
+            },
+            "paws": {
+              "n": 80,
+              "acc": 0.8
+            },
+            "qnli": {
+              "n": 80,
+              "acc": 0.9125
+            },
+            "sciq": {
+              "n": 80,
+              "acc": 0.975
+            },
+            "tweet_offensive": {
+              "n": 80,
+              "acc": 0.75
+            }
+          }
         }
       },
       "jev_minus_luna": {
         "acc": -0.025914634146341462,
         "ci": [
-          -0.050001840942562596,
-          -0.001522012185812827
+          -0.05108761428590855,
+          -0.003038827040685539
+        ]
+      },
+      "jev_minus_kev4b": {
+        "acc": 0.041158536585365856,
+        "ci": [
+          0.011541321909206695,
+          0.07228962001853567
         ]
       }
     },
@@ -162,8 +235,8 @@
           },
           "acc": 0.8765243902439024,
           "acc_ci": [
-            0.8493701199528358,
-            0.9013878511884494
+            0.8481968555519162,
+            0.9006277794112243
           ],
           "ece": 0.03513426952451344,
           "brier": 0.17684226811724038,
@@ -228,8 +301,8 @@
           },
           "acc": 0.8978658536585366,
           "acc_ci": [
-            0.8757443705124742,
-            0.9198827624230145
+            0.8736825476012307,
+            0.9204729925169962
           ],
           "ece": 0.10213414634146345,
           "brier": 0.20426829268292682,
@@ -281,13 +354,86 @@
               "acc": 0.7875
             }
           }
+        },
+        "kev4b": {
+          "served_model": "kev-latest",
+          "coverage": {
+            "requested_records": 764,
+            "requested_questions": 764,
+            "evaluated_records": 764,
+            "evaluated_questions": 764,
+            "rejected_records": 0,
+            "truncated_records": 0
+          },
+          "acc": 0.8384146341463414,
+          "acc_ci": [
+            0.8070967348927875,
+            0.8671899112654321
+          ],
+          "ece": 0.01698534866452659,
+          "brier": 0.22424560467380641,
+          "nll": 0.4162958198360165,
+          "confident_error_rate": 0.01676829268292683,
+          "by_source": {
+            "composition_final_combination": {
+              "n": 32,
+              "acc": 0.8125
+            },
+            "composition_final_exception": {
+              "n": 32,
+              "acc": 0.875
+            },
+            "composition_final_negation": {
+              "n": 32,
+              "acc": 0.90625
+            },
+            "contrastive_authorization": {
+              "n": 40,
+              "acc": 1.0
+            },
+            "contrastive_deadline": {
+              "n": 40,
+              "acc": 0.8
+            },
+            "emotion": {
+              "n": 80,
+              "acc": 0.6625
+            },
+            "mmlu": {
+              "n": 80,
+              "acc": 0.7
+            },
+            "paws": {
+              "n": 80,
+              "acc": 0.825
+            },
+            "qnli": {
+              "n": 80,
+              "acc": 0.9
+            },
+            "sciq": {
+              "n": 80,
+              "acc": 1.0
+            },
+            "tweet_offensive": {
+              "n": 80,
+              "acc": 0.85
+            }
+          }
         }
       },
       "jev_minus_luna": {
         "acc": -0.021341463414634148,
         "ci": [
-          -0.04203247773703509,
-          0.0
+          -0.04306923726428371,
+          -0.0015598807182100952
+        ]
+      },
+      "jev_minus_kev4b": {
+        "acc": 0.038109756097560975,
+        "ci": [
+          0.011776498931614837,
+          0.06676788895277053
         ]
       }
     },
@@ -307,8 +453,8 @@
           },
           "acc": 0.8449367088607594,
           "acc_ci": [
-            0.8224213128332556,
-            0.8646227018385291
+            0.8228760986525246,
+            0.8672638347168622
           ],
           "ece": 0.06249248817286801,
           "brier": 0.23687318894416612,
@@ -425,8 +571,8 @@
           },
           "acc": 0.8615506329113924,
           "acc_ci": [
-            0.8392424113475178,
-            0.8827743150287339
+            0.8399622437348859,
+            0.882447504602677
           ],
           "ece": 0.13844936708860756,
           "brier": 0.27689873417721517,
@@ -530,13 +676,138 @@
               "acc": 0.9
             }
           }
+        },
+        "kev4b": {
+          "served_model": "kev-latest",
+          "coverage": {
+            "requested_records": 1204,
+            "requested_questions": 1468,
+            "evaluated_records": 1204,
+            "evaluated_questions": 1468,
+            "rejected_records": 0,
+            "truncated_records": 0
+          },
+          "acc": 0.8710443037974683,
+          "acc_ci": [
+            0.848881849531568,
+            0.8928578259919118
+          ],
+          "ece": 0.013241286133473926,
+          "brier": 0.18243849022966227,
+          "nll": 0.3476842168173739,
+          "confident_error_rate": 0.015822784810126583,
+          "by_source": {
+            "agnews": {
+              "n": 80,
+              "acc": 0.8625
+            },
+            "agnews_yn": {
+              "n": 160,
+              "acc": 0.91875
+            },
+            "amazon": {
+              "n": 80,
+              "acc": 0.65
+            },
+            "banking77": {
+              "n": 80,
+              "acc": 0.9
+            },
+            "boolq": {
+              "n": 80,
+              "acc": 0.9125
+            },
+            "composition_atom": {
+              "n": 16,
+              "acc": 1.0
+            },
+            "composition_conditional": {
+              "n": 16,
+              "acc": 0.8125
+            },
+            "composition_conjunction": {
+              "n": 16,
+              "acc": 1.0
+            },
+            "composition_disjunction": {
+              "n": 16,
+              "acc": 0.9375
+            },
+            "composition_exception": {
+              "n": 16,
+              "acc": 1.0
+            },
+            "composition_negation": {
+              "n": 16,
+              "acc": 1.0
+            },
+            "composition_nested_and": {
+              "n": 16,
+              "acc": 0.8125
+            },
+            "composition_nested_or": {
+              "n": 16,
+              "acc": 1.0
+            },
+            "contrastive_age_eligibility": {
+              "n": 24,
+              "acc": 1.0
+            },
+            "contrastive_quantity_limit": {
+              "n": 24,
+              "acc": 0.9166666666666666
+            },
+            "contrastive_return_window": {
+              "n": 24,
+              "acc": 0.9583333333333334
+            },
+            "contrastive_spend_threshold": {
+              "n": 24,
+              "acc": 1.0
+            },
+            "dbpedia14": {
+              "n": 80,
+              "acc": 0.9625
+            },
+            "imdb": {
+              "n": 80,
+              "acc": 0.9625
+            },
+            "mnli": {
+              "n": 80,
+              "acc": 0.925
+            },
+            "sst5": {
+              "n": 80,
+              "acc": 0.625
+            },
+            "trec": {
+              "n": 80,
+              "acc": 0.95
+            },
+            "yelp": {
+              "n": 80,
+              "acc": 0.625
+            },
+            "yelp_yn": {
+              "n": 80,
+              "acc": 0.875
+            }
+          }
         }
       },
       "jev_minus_luna": {
         "acc": -0.01661392405063291,
         "ci": [
-          -0.03181393750992833,
-          -0.00080512061761188
+          -0.03138852390007989,
+          -0.0008107542579075429
+        ]
+      },
+      "jev_minus_kev4b": {
+        "acc": -0.02610759493670886,
+        "ci": [
+          -0.04630529532507219,
+          -0.007062580276865993
         ]
       }
     },
@@ -556,8 +827,8 @@
           },
           "acc": 0.835,
           "acc_ci": [
-            0.8127026582886869,
-            0.855615547241747
+            0.8128445320204891,
+            0.8556962025316456
           ],
           "ece": 0.056153956228956234,
           "brier": 0.24607067641057034,
@@ -642,8 +913,8 @@
           },
           "acc": 0.8458333333333333,
           "acc_ci": [
-            0.8231826373168116,
-            0.8688469611528822
+            0.8213652174398155,
+            0.8672815653278121
           ],
           "ece": 0.15416666666666667,
           "brier": 0.30833333333333335,
@@ -715,13 +986,106 @@
               "acc": 0.9125
             }
           }
+        },
+        "kev4b": {
+          "served_model": "kev-latest",
+          "coverage": {
+            "requested_records": 1176,
+            "requested_questions": 1440,
+            "evaluated_records": 1176,
+            "evaluated_questions": 1440,
+            "rejected_records": 0,
+            "truncated_records": 0
+          },
+          "acc": 0.8658333333333333,
+          "acc_ci": [
+            0.8458855206764064,
+            0.8877824935973725
+          ],
+          "ece": 0.0185761440964144,
+          "brier": 0.1862164720816347,
+          "nll": 0.3496771210544126,
+          "confident_error_rate": 0.008333333333333333,
+          "by_source": {
+            "agnews": {
+              "n": 80,
+              "acc": 0.8625
+            },
+            "agnews_yn": {
+              "n": 160,
+              "acc": 0.95
+            },
+            "amazon": {
+              "n": 80,
+              "acc": 0.5875
+            },
+            "banking77": {
+              "n": 80,
+              "acc": 0.85
+            },
+            "boolq": {
+              "n": 80,
+              "acc": 0.875
+            },
+            "contrastive_age_eligibility": {
+              "n": 40,
+              "acc": 1.0
+            },
+            "contrastive_quantity_limit": {
+              "n": 40,
+              "acc": 0.9
+            },
+            "contrastive_return_window": {
+              "n": 40,
+              "acc": 0.9
+            },
+            "contrastive_spend_threshold": {
+              "n": 40,
+              "acc": 1.0
+            },
+            "dbpedia14": {
+              "n": 80,
+              "acc": 1.0
+            },
+            "imdb": {
+              "n": 80,
+              "acc": 0.9625
+            },
+            "mnli": {
+              "n": 80,
+              "acc": 0.925
+            },
+            "sst5": {
+              "n": 80,
+              "acc": 0.6125
+            },
+            "trec": {
+              "n": 80,
+              "acc": 0.9625
+            },
+            "yelp": {
+              "n": 80,
+              "acc": 0.6375
+            },
+            "yelp_yn": {
+              "n": 80,
+              "acc": 0.9125
+            }
+          }
         }
       },
       "jev_minus_luna": {
         "acc": -0.010833333333333334,
         "ci": [
-          -0.028979556158719277,
-          0.008362788908831176
+          -0.028126509580806185,
+          0.007588532883642495
+        ]
+      },
+      "jev_minus_kev4b": {
+        "acc": -0.030833333333333334,
+        "ci": [
+          -0.04893977877354919,
+          -0.011469423466568434
         ]
       }
     }

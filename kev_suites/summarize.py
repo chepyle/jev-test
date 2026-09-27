@@ -1,11 +1,11 @@
-"""Summarize Jev and Luna on Kev's frozen suites, next to Kev-4B's published reports.
+"""Summarize Jev, Luna and Kev-4B on Kev's frozen suites.
 
 Reads `results/kev-suites/<model>-<suite>-<split>/{report,rows}.json` written by
-`kev.benchmark`, and Kev-4B's release/locked-test reports from `third_party/kev/runs`.
-Point estimates are Kev's own (`report.json` "clean" block). Intervals: 95% bootstrap over
-record groups (a contrastive pair resamples together), 1000 resamples, seed 0. Paired
-differences use the same resampled groups for both models. Kev-4B has no public per-row
-predictions, so it has point estimates only and no paired test.
+`kev.benchmark`, and Kev-4B's published release/locked-test reports from
+`third_party/kev/runs` as a check on our served Kev-4B. Point estimates are Kev's own
+(`report.json` "clean" block). Intervals: 95% bootstrap over record groups (a contrastive
+pair resamples together), 1000 resamples, seed 0. Paired differences use the same
+resampled groups for both models.
 
     uv run python kev_suites/summarize.py > analysis/kev-suites.md
 """
@@ -19,11 +19,11 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results" / "kev-suites"
 KEV = ROOT / "third_party" / "kev"
-MODELS = ("jev", "luna")
+MODELS = ("jev", "luna", "kev4b")
 LABELS = {
     "jev": "Jev 1.13 (System One)",
     "luna": "GPT-5.6 Luna (chat JSON)",
-    "kev-4b": "Kev-4B (published)",
+    "kev4b": "Kev-4B (served, temperature-scaled)",
 }
 SPLITS = [
     ("transfer-v4", "dev"),
@@ -43,8 +43,10 @@ def correct(row):
     return int(np.argmax(row["p"]) == row["label"])
 
 
-def bootstrap(groups, value, rng):
-    """95% interval of `value(indices)` over resampled groups."""
+def bootstrap(groups, value):
+    """95% interval of `value(indices)` over resampled groups. Every call on a split draws the
+    same resamples (fresh generator, fixed seed), so intervals do not depend on call order."""
+    rng = np.random.default_rng(SEED)
     names = list(groups)
     stats = []
     for _ in range(RESAMPLES):
@@ -84,7 +86,6 @@ def kev4b_published():
 
 
 def main():
-    rng = np.random.default_rng(SEED)
     summary = {
         "protocol": __doc__.split("\n\n")[1].replace("\n", " "),
         "splits": {},
@@ -93,9 +94,8 @@ def main():
     for suite, split in SPLITS:
         key = f"{suite}-{split}"
         rows = {m: clean_rows(m, suite, split) for m in MODELS}
-        assert rows["jev"].keys() == rows["luna"].keys(), (
-            f"{key}: models scored different questions"
-        )
+        for m in MODELS:
+            assert rows[m].keys() == rows["jev"].keys(), f"{key}: {m} scored other questions"
         ids = sorted(rows["jev"])
         groups = defaultdict(list)
         for i, qid in enumerate(ids):
@@ -112,7 +112,7 @@ def main():
                 "served_model": report["remote"]["served_model"],
                 "coverage": report["coverage"],
                 "acc": clean["acc"],
-                "acc_ci": bootstrap(groups, lambda idx, hits=ok[m]: hits[idx].mean(), rng),
+                "acc_ci": bootstrap(groups, lambda idx, hits=ok[m]: hits[idx].mean()),
                 "ece": clean["ece"],
                 "brier": clean["brier"],
                 "nll": clean["nll"],
@@ -121,11 +121,12 @@ def main():
                     t: {"n": v["n"], "acc": v["acc"]} for t, v in sorted(report["tasks"].items())
                 },
             }
-        diff = ok["jev"] - ok["luna"]
-        entry["jev_minus_luna"] = {
-            "acc": float(diff.mean()),
-            "ci": bootstrap(groups, lambda idx, diff=diff: diff[idx].mean(), rng),
-        }
+        for other in ("luna", "kev4b"):
+            diff = ok["jev"] - ok[other]
+            entry[f"jev_minus_{other}"] = {
+                "acc": float(diff.mean()),
+                "ci": bootstrap(groups, lambda idx, diff=diff: diff[idx].mean()),
+            }
         summary["splits"][key] = entry
     (ROOT / "analysis" / "kev-suites.json").write_text(json.dumps(summary, indent=2) + "\n")
     print_tables(summary)
@@ -136,42 +137,43 @@ def fmt(ci):
 
 
 def print_tables(summary):
-    kev = summary["kev-4b"]
+    published = summary["kev-4b"]
     print(
-        "| Split | n | Jev acc. [95% CI] | Luna acc. [95% CI] | Jev − Luna [95% CI] "
-        "| Kev-4B acc. (published) |"
+        "| Split | n | Jev [95% CI] | Luna [95% CI] | Kev-4B [95% CI] "
+        "| Jev − Luna [95% CI] | Jev − Kev-4B [95% CI] | Kev-4B published |"
     )
-    print("|---|---:|---|---|---|---:|")
+    print("|---|---:|---|---|---|---|---|---:|")
     for key, e in summary["splits"].items():
-        j, lu, d = e["models"]["jev"], e["models"]["luna"], e["jev_minus_luna"]
-        print(
-            f"| {key} | {e['n_questions']} | {j['acc']:.3f} {fmt(j['acc_ci'])} "
-            f"| {lu['acc']:.3f} {fmt(lu['acc_ci'])} "
-            f"| {d['acc']:+.3f} {fmt(d['ci'])} | {kev[key]['acc']:.3f} |"
+        m = e["models"]
+        cells = " | ".join(f"{m[x]['acc']:.3f} {fmt(m[x]['acc_ci'])}" for x in MODELS)
+        diffs = " | ".join(
+            f"{e[f'jev_minus_{x}']['acc']:+.3f} {fmt(e[f'jev_minus_{x}']['ci'])}"
+            for x in ("luna", "kev4b")
         )
+        print(f"| {key} | {e['n_questions']} | {cells} | {diffs} | {published[key]['acc']:.3f} |")
     print()
     print(
-        "| Split | Jev ECE | Jev Brier | Jev confident errors "
-        "| Kev-4B ECE raw / calibrated | Kev-4B Brier raw / calibrated |"
+        "| Split | Jev ECE / Brier / wrong at ≥0.9 | Kev-4B ECE / Brier / wrong at ≥0.9 "
+        "| Kev-4B published ECE raw / scaled |"
     )
-    print("|---|---:|---:|---:|---|---|")
+    print("|---|---|---|---|")
     for key, e in summary["splits"].items():
-        j, k = e["models"]["jev"], kev[key]
-        raw_ece = f"{k['ece_raw']:.3f}" if "ece_raw" in k else "–"
-        raw_brier = f"{k['brier_raw']:.3f}" if "brier_raw" in k else "–"
+        j, k, p = e["models"]["jev"], e["models"]["kev4b"], published[key]
+        raw = f"{p['ece_raw']:.3f}" if "ece_raw" in p else "–"
         print(
-            f"| {key} | {j['ece']:.3f} | {j['brier']:.3f} | {j['confident_error_rate']:.3f} "
-            f"| {raw_ece} / {k['ece_calibrated']:.3f} | {raw_brier} / {k['brier_calibrated']:.3f} |"
+            f"| {key} | {j['ece']:.3f} / {j['brier']:.3f} / {j['confident_error_rate']:.3f} "
+            f"| {k['ece']:.3f} / {k['brier']:.3f} / {k['confident_error_rate']:.3f} "
+            f"| {raw} / {p['ece_calibrated']:.3f} |"
         )
     print()
     for key in ("transfer-v4-test", "decision-v7-test"):
         e = summary["splits"][key]
         print(f"{key} accuracy by source:\n")
-        print("| Source | n | Jev | Luna |")
-        print("|---|---:|---:|---:|")
+        print("| Source | n | Jev | Luna | Kev-4B |")
+        print("|---|---:|---:|---:|---:|")
         for src, v in e["models"]["jev"]["by_source"].items():
-            luna = e["models"]["luna"]["by_source"][src]["acc"]
-            print(f"| {src} | {v['n']} | {v['acc']:.3f} | {luna:.3f} |")
+            accs = " | ".join(f"{e['models'][x]['by_source'][src]['acc']:.3f}" for x in MODELS)
+            print(f"| {src} | {v['n']} | {accs} |")
         print()
 
 

@@ -368,72 +368,78 @@ Findings:
   reproduction for LexGLUE; both datasets are public since 2019 to 2020, so training-data
   overlap cannot be excluded.
 
-## Kev's suites: Jev and Luna on the Kev benchmark, with Kev-4B's published numbers
+## Kev's suites: Jev, Luna and Kev-4B on the Kev benchmark
 
-[Kev](https://github.com/jaredpalmer/kev) (commit `5920c5f`) is a family of open-weight
-decision models on Qwen3.5/3.8 bases that serve TypeSafe's System One API. Its README scores
-Kev and Jev on two frozen suites: `transfer-v4` ("new sources": QNLI, SciQ, PAWS, MMLU,
-Emotion, TweetEval-offensive, held-out policy and rule items, none in Kev's training data) and
+[Kev](https://github.com/jaredpalmer/kev) is a family of open-weight decision models on
+Qwen3.5/3.8 bases that serve TypeSafe's System One API. Its README scores Kev and Jev on two
+frozen suites: `transfer-v4` ("new sources": QNLI, SciQ, PAWS, MMLU, Emotion,
+TweetEval-offensive, held-out policy and rule items, none in Kev's training data) and
 `decision-v7` ("trained sources": held-out items from Kev's ten training datasets, including
 BANKING77, plus generated policies and rules).
 
 - Runs 2026-09-27, all four splits (dev and locked test) of both suites, scored by Kev's own
-  `kev.benchmark --remote` so metrics are computed exactly as Kev computes them.
-  Commands: `kev_suites/run_jev.sh`, `kev_suites/run_luna.sh`, `kev_suites/summarize.py`;
-  output `analysis/kev-suites.{json,md}`.
+  `kev.benchmark --remote` so metrics are computed exactly as Kev computes them. Suites and
+  scorer from Kev commit `5920c5f`. Commands: `kev_suites/run_{jev,luna,kev}.sh`,
+  `kev_suites/summarize.py`; output `analysis/kev-suites.{json,md}`.
 - Jev: OpenRouter System One, `typesafe/jev-1.13` (served `jev-1.13-20260917`), 3,908 / 3,908
   records, 0 rejected.
 - Luna: `openai/gpt-5.6-luna` behind `jev_test.chatshim`, a local System One endpoint that
   asks all of a record's questions in one strict-JSON chat call and returns one-hot answers.
   3,908 / 3,908 records, 0 rejected, 0 retries, $0.35. **One-hot answers, so accuracy only:**
   Luna's ECE, Brier and NLL are not meaningful and are not reported.
-- Kev-4B: **not run here.** Deploying Kev's serving code to Modal was blocked by a
-  permission check in this session. Its numbers are the published r10 release reports
-  (`runs/release/kev-4b-r10.json`, `runs/locked/kev-4b-r10-ungated/summary.json`), point
-  estimates only, with no per-row predictions, so no paired test against Kev-4B.
+- Kev-4B: `jaredpalmer/kev-4b` (r10 release, bf16, temperature 2.41 applied by the server),
+  served by Kev's own `kev_modal.py` at `5920c5f` on a Modal L40S. 3,908 / 3,908 records,
+  0 rejected. The probabilities are temperature-scaled, as Kev ships them.
 - BERT: not applicable. The LexGLUE baseline is one fine-tuned head per LexGLUE task; it has
   no head for these label sets.
-- Harness check: on `transfer-v4` dev, Kev published Jev at accuracy 0.857, ECE 0.049, Brier
-  0.211 (via Vercel AI Gateway). This run gives 0.855, 0.049, 0.211 via OpenRouter: 1 of
-  656 answers differs.
+- Harness checks:
+  - Jev on `transfer-v4` dev: Kev published accuracy 0.857, ECE 0.049, Brier 0.211 (via
+    Vercel AI Gateway); this run gives 0.855, 0.049, 0.211 via OpenRouter (1 of 656 answers
+    differs).
+  - Kev-4B: our served accuracy is within 0.003 of Kev's published fp32 numbers on every
+    split (test: 0.838 vs 0.838, 0.866 vs 0.865), ECE within 0.005.
+  - Serving code: the same four splits served at Kev `f2bb629` (8k-token context) and
+    `5920c5f` (64k) differ by 0 to 4 argmax answers per split, accuracy by at most 0.0015,
+    probabilities by at most 0.054. `5920c5f` is used because LexGLUE documents need the
+    longer context (next section).
 
 Intervals: 95% bootstrap over record groups (contrastive pairs resample together), 1000
-resamples, seed 0; the difference is paired on identical questions. n counts questions in
-Kev's "clean" variant.
+resamples, seed 0, the same resamples for every quantity; differences are paired on identical
+questions. n counts questions in Kev's "clean" variant.
 
-| Split | n | Jev acc. [95% CI] | Luna acc. [95% CI] | Jev − Luna [95% CI] | Kev-4B acc. (published) |
-|---|---:|---|---|---|---:|
-| transfer-v4 dev | 656 | 0.855 [0.826, 0.883] | 0.881 [0.856, 0.906] | −0.026 [−0.050, −0.002] | 0.817 |
-| transfer-v4 test | 656 | 0.877 [0.849, 0.901] | 0.898 [0.876, 0.920] | −0.021 [−0.042, 0.000] | 0.838 |
-| decision-v7 dev | 1264 | 0.845 [0.822, 0.865] | 0.862 [0.839, 0.883] | −0.017 [−0.032, −0.001] | 0.873 |
-| decision-v7 test | 1200 | 0.835 [0.813, 0.856] | 0.846 [0.823, 0.869] | −0.011 [−0.029, 0.008] | 0.865 |
+| Split | n | Jev [95% CI] | Luna [95% CI] | Kev-4B [95% CI] | Jev − Luna [95% CI] | Jev − Kev-4B [95% CI] |
+|---|---:|---|---|---|---|---|
+| transfer-v4 dev | 656 | 0.855 [0.826, 0.883] | 0.881 [0.854, 0.907] | 0.814 [0.779, 0.845] | −0.026 [−0.051, −0.003] | +0.041 [0.012, 0.072] |
+| transfer-v4 test | 656 | 0.877 [0.848, 0.901] | 0.898 [0.874, 0.920] | 0.838 [0.807, 0.867] | −0.021 [−0.043, −0.002] | +0.038 [0.012, 0.067] |
+| decision-v7 dev | 1264 | 0.845 [0.823, 0.867] | 0.862 [0.840, 0.882] | 0.871 [0.849, 0.893] | −0.017 [−0.031, −0.001] | −0.026 [−0.046, −0.007] |
+| decision-v7 test | 1200 | 0.835 [0.813, 0.856] | 0.846 [0.821, 0.867] | 0.866 [0.846, 0.888] | −0.011 [−0.028, 0.008] | −0.031 [−0.049, −0.011] |
 
-| Split | Jev ECE | Jev Brier | Jev wrong at ≥ 0.9 | Kev-4B ECE raw / temperature-scaled | Kev-4B Brier raw / scaled |
-|---|---:|---:|---:|---|---|
-| transfer-v4 dev | 0.049 | 0.211 | 0.037 | – / 0.042 | – / 0.243 |
-| transfer-v4 test | 0.035 | 0.177 | 0.024 | 0.085 / 0.017 | 0.242 / 0.224 |
-| decision-v7 dev | 0.062 | 0.237 | 0.053 | – / 0.013 | – / 0.182 |
-| decision-v7 test | 0.056 | 0.246 | 0.041 | 0.080 / 0.019 | 0.210 / 0.186 |
+| Split | Jev ECE / Brier / wrong at ≥ 0.9 | Kev-4B ECE / Brier / wrong at ≥ 0.9 | Kev-4B ECE before temperature (published) |
+|---|---|---|---:|
+| transfer-v4 dev | 0.049 / 0.211 / 0.037 | 0.037 / 0.243 / 0.009 | – |
+| transfer-v4 test | 0.035 / 0.177 / 0.024 | 0.017 / 0.224 / 0.017 | 0.085 |
+| decision-v7 dev | 0.062 / 0.237 / 0.053 | 0.013 / 0.182 / 0.016 | – |
+| decision-v7 test | 0.056 / 0.246 / 0.041 | 0.019 / 0.186 / 0.008 | 0.080 |
 
 Findings:
 
-- **Luna is ahead of Jev on all four splits, by 1.1 to 2.6 points.** The paired interval
-  excludes zero on both dev splits, reaches zero on `transfer-v4` test, and includes zero on
-  `decision-v7` test. The direction is consistent; the size on held-out test data is not
-  established. This matches LexGLUE, where Luna led Jev by 1.4 mean μ-F1 under the same
-  protocol difference (chat JSON vs System One).
-- **On new sources, Kev-4B is below both** (test 0.838 vs Jev 0.877 [0.849, 0.901]; unpaired).
-  **On its own training sources it is above both** (test 0.865 vs Jev 0.835 [0.813, 0.856],
-  Luna 0.846 [0.823, 0.869]). `decision-v7` is in-distribution for Kev and zero-shot for Jev
-  and Luna, so that row is not a like-for-like comparison.
-- **Jev's raw probabilities are better calibrated than Kev-4B's raw ones** (test ECE 0.035
-  and 0.056 vs 0.085 and 0.080). Kev's temperature, fitted on its in-distribution
-  development data, brings Kev-4B to 0.017 and 0.019. Jev has no such fit here; on LexGLUE,
-  Jev's ECE ranged 0.04 to 0.15 by task.
-- **Largest per-source gaps are small-n.** Jev trails Luna on the `return_window` policy
-  items (0.600 vs 0.850, n=40, 20 pairs) and on BANKING77 (0.738 vs 0.800, n=80); it leads on
-  TREC (0.912 vs 0.863) and Amazon (0.637 vs 0.562), n=80 each. Per-source tables are in
-  `analysis/kev-suites.md`.
+- **On new sources the order is Luna > Jev > Kev-4B.** Jev leads Kev-4B by 3.8 to 4.1 points
+  with paired intervals above zero on both splits. Luna leads Jev by 2.1 to 2.6; on
+  `transfer-v4` test the interval's upper end is −0.002 with this seed and 0.000 with others,
+  so that split is borderline.
+- **On Kev's training sources Kev-4B leads** Jev by 2.6 to 3.1 points (intervals below zero)
+  and Luna by about 2. `decision-v7` is in-distribution for Kev and zero-shot for Jev and
+  Luna, so this row measures what Kev's training buys, not a like-for-like comparison.
+- **Kev-4B's served probabilities are better calibrated than Jev's** (test ECE 0.017 and 0.019
+  vs 0.035 and 0.056; confident errors 0.8% to 1.7% vs 2.4% to 4.1%). That is Kev's
+  temperature fit, made on its in-distribution development data: before it, Kev-4B's ECE was
+  0.085 and 0.080, worse than Jev's raw 0.035 and 0.056. Jev has no fit here. Brier tracks
+  accuracy more than calibration: Jev's Brier is lower on new sources, Kev-4B's on trained.
+- **Per-source gaps are small-n (40 to 160).** Kev-4B's largest deficits to Jev on new sources
+  are MMLU (0.700 vs 0.863, n=80), the composed-rule items (0.812 to 0.875 vs 0.906 to 1.000,
+  n=32 each) and the deadline items (0.800 vs 0.900, n=40); its advantage is TweetEval
+  offensive (0.850 vs 0.762). Jev's `return_window` items (0.600, n=40) trail both Luna
+  (0.850) and Kev-4B (0.900). Full tables in `analysis/kev-suites.md`.
 - Jev's BANKING77 accuracy here (0.738, n=80, Kev's option wording) is below its full-test
   80.6 [79.3, 81.9] from the section above. The 80-item sample's interval is about ±0.10, so
-  this is not evidence of a difference.
+  this is not evidence of a difference. Kev-4B (0.850) was trained on BANKING77.
