@@ -14,7 +14,8 @@ Protocol differences from System One, which matter when comparing scores:
 Answers are cached on disk by request hash, so a crashed or repeated benchmark replays them
 without new calls, and a client-side retry of a slow request does not pay twice.
 
-    uv run python -m jev_test.chatshim --model openai/gpt-5.6-luna --cache results/kev-suites/luna-cache
+    uv run python -m jev_test.chatshim --model openai/gpt-5.6-luna \
+        --cache results/kev-suites/luna-cache
 """
 
 import argparse
@@ -24,7 +25,7 @@ import os
 import random
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -49,13 +50,15 @@ def render(value, indent: int = 0) -> str:
     if isinstance(value, list):
         return "\n".join(f"{pad}- {render(x, indent + 1).lstrip()}" for x in value)
     return "\n".join(
-        f"{pad}{k}:\n{render(x, indent + 1)}" if isinstance(x, (dict, list)) else f"{pad}{k}: {render(x)}"
+        f"{pad}{k}:\n{render(x, indent + 1)}"
+        if isinstance(x, (dict, list))
+        else f"{pad}{k}: {render(x)}"
         for k, x in value.items()
     )
 
 
 def option_keys(question: dict) -> list[str]:
-    """Answer keys in Kev's convention: criteria names (choice), false/true (noul), level indices (score)."""
+    """Answer keys as Kev names them: criteria (choice), false/true (noul), level index (score)."""
     if question["type"] == "choice":
         return list(question["criteria"])
     if question["type"] == "noul":
@@ -68,7 +71,10 @@ def describe(qid: str, question: dict) -> str:
     criteria = question.get("criteria")
     if question["type"] == "choice":
         lines.append("Options:")
-        lines += [f"- {k}" + (f": {render(v)}" if v not in (None, "") else "") for k, v in criteria.items()]
+        lines += [
+            f"- {k}" + (f": {render(v)}" if v not in (None, "") else "")
+            for k, v in criteria.items()
+        ]
     elif question["type"] == "noul":
         lines.append("Answer true or false.")
         if criteria:
@@ -140,7 +146,10 @@ def to_system_one(request: dict, body: dict) -> dict:
     return {
         "model": body["model"],
         "answers": answers,
-        "usage": {"input_tokens": usage.get("prompt_tokens"), "output_tokens": usage.get("completion_tokens")},
+        "usage": {
+            "input_tokens": usage.get("prompt_tokens"),
+            "output_tokens": usage.get("completion_tokens"),
+        },
         "cost": usage.get("cost"),
     }
 
@@ -154,11 +163,13 @@ class Shim:
 
     def incident(self, text: str) -> None:
         with self.lock, (self.cache / "incidents.log").open("a") as log:
-            log.write(f"{datetime.now(timezone.utc).isoformat()} {text}\n")
+            log.write(f"{datetime.now(UTC).isoformat()} {text}\n")
 
     def answer(self, request: dict) -> dict:
         request = {"state": request["state"], "questions": request["questions"]}
-        key = hashlib.sha256(json.dumps([SHIM_PROTOCOL_VERSION, self.model, request], sort_keys=True).encode()).hexdigest()
+        key = hashlib.sha256(
+            json.dumps([SHIM_PROTOCOL_VERSION, self.model, request], sort_keys=True).encode()
+        ).hexdigest()
         path = self.cache / f"{key}.json"
         if path.exists():
             return json.loads(path.read_text())
@@ -166,7 +177,9 @@ class Shim:
         last = None
         for attempt in range(self.attempts):
             try:
-                response = self.http.post(CHAT_ENDPOINT, json=payload, headers={"Authorization": f"Bearer {self.api_key}"})
+                response = self.http.post(
+                    CHAT_ENDPOINT, json=payload, headers={"Authorization": f"Bearer {self.api_key}"}
+                )
                 if response.status_code == 200:
                     result = to_system_one(request, response.json())
                     tmp = path.with_suffix(".tmp")

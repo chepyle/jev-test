@@ -7,9 +7,17 @@ from jev_test.chatshim import Shim, build_chat_request, render, to_system_one
 REQUEST = {
     "state": {"policy": "Late reports are refused.", "case": "Filed on time."},
     "questions": {
-        "topic": {"type": "choice", "instructions": "Topic?", "criteria": {"world": "World news", "business": None}},
+        "topic": {
+            "type": "choice",
+            "instructions": "Topic?",
+            "criteria": {"world": "World news", "business": None},
+        },
         "late": {"type": "noul", "instructions": "Is it late?"},
-        "decision": {"type": "score", "instructions": "How late?", "criteria": ["On time", "Late", "Refused"]},
+        "decision": {
+            "type": "score",
+            "instructions": "How late?",
+            "criteria": ["On time", "Late", "Refused"],
+        },
     },
 }
 
@@ -45,7 +53,13 @@ def test_answers_are_one_hot_in_kev_keys():
     assert out["usage"] == {"input_tokens": 10, "output_tokens": 3}
 
 
-@pytest.mark.parametrize("answer", [{"topic": "sports", "late": True, "decision": 0}, {"topic": "world", "late": "yes", "decision": 0}])
+@pytest.mark.parametrize(
+    "answer",
+    [
+        {"topic": "sports", "late": True, "decision": 0},
+        {"topic": "world", "late": "yes", "decision": 0},
+    ],
+)
 def test_malformed_answers_raise(answer):
     with pytest.raises(ValueError):
         to_system_one(REQUEST, chat_body(answer))
@@ -54,7 +68,17 @@ def test_malformed_answers_raise(answer):
 def test_cached_answer_is_replayed_without_a_call(tmp_path):
     shim = Shim("m", tmp_path, "key")
     calls = []
-    shim.http.post = lambda *a, **k: calls.append(1) or type("R", (), {"status_code": 200, "json": lambda self: chat_body({"topic": "world", "late": True, "decision": 1})})()
+    shim.http.post = lambda *a, **k: (
+        calls.append(1)
+        or type(
+            "R",
+            (),
+            {
+                "status_code": 200,
+                "json": lambda self: chat_body({"topic": "world", "late": True, "decision": 1}),
+            },
+        )()
+    )
     first = shim.answer(REQUEST)
     assert shim.answer({**REQUEST, "model": "ignored"}) == first
     assert len(calls) == 1
