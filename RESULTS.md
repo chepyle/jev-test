@@ -443,3 +443,85 @@ Findings:
 - Jev's BANKING77 accuracy here (0.738, n=80, Kev's option wording) is below its full-test
   80.6 [79.3, 81.9] from the section above. The 80-item sample's interval is about ±0.10, so
   this is not evidence of a difference. Kev-4B (0.850) was trained on BANKING77.
+
+## Fourth model: Kev-4B on LexGLUE and the intent suite
+
+- Model: `jaredpalmer/kev-4b` (r10, Qwen3.5-4B-Base + LoRA 16 + pointer head, bf16,
+  temperature 2.41 applied by the server), served by Kev's `kev_modal.py` at Kev `5920c5f` on
+  Modal L40S, run 2026-09-27. Same System One requests as Jev (`jev-bench run --endpoint
+  <modal url> --model kev-latest`): same instructions, label descriptions, 48,000-character
+  truncation, 0.5 multi-label threshold.
+- LexGLUE test 23,607 / 23,607 and intents test 8,580 / 8,580, 0 failed, 0 retries. The
+  intents job was killed at 1,530 and resumed (`jobs/kev4b-intents`); the ledger has 8,580
+  unique ids.
+- Cost: $8.01 Modal GPU for all Kev serving in this session (Kev suites, smoke test, both
+  full runs); 73.3M input tokens on LexGLUE.
+- Context: Kev's commit `f2bb629` serves states of at most 8,192 tokens and rejected a long
+  ECtHR document with HTTP 422; `5920c5f` serves 64k. Kev-4B was trained on states of at most
+  384 tokens (`MAX_STATE` in `kev/model.py`), so almost every LexGLUE document is longer than
+  anything it trained on.
+
+| Task | Kev-4B μ-F1 | Jev μ-F1 | Jev − Kev-4B Δ μ-F1 [95% CI] | Kev-4B m-F1 | Jev m-F1 | Δ m-F1 [95% CI] | Only Jev / only Kev exact | McNemar p |
+|---|---:|---:|---|---:|---:|---|---:|---:|
+| ECtHR A | 63.8 | 73.0 | +9.1 [+7.2, +11.0] | 60.5 | 71.4 | +10.9 [+7.7, +14.0] | 190 / 107 | 2e-6 |
+| ECtHR B | 70.8 | 75.4 | +4.6 [+2.8, +6.3] | 65.4 | 72.6 | +7.2 [+4.1, +10.2] | 154 / 147 | 0.73 |
+| SCOTUS | 59.3 | 72.6 | +13.3 [+10.9, +15.4] | 57.7 | 62.1 | +4.4 [+1.6, +7.1] | 230 / 44 | 1e-31 |
+| EUR-LEX | 37.2 | 39.1 | +1.9 [+1.6, +2.2] | 36.0 | 37.0 | +1.1 [+0.5, +1.6] | 0 / 0 | 1 |
+| LEDGAR | 68.0 | 75.3 | +7.3 [+6.6, +8.0] | 56.2 | 63.3 | +7.1 [+5.7, +8.3] | 1068 / 336 | 6e-89 |
+| UNFAIR-ToS | 69.9 | 76.4 | +6.5 [+4.6, +8.5] | 47.3 | 54.4 | +7.1 [+3.9, +10.1] | 221 / 116 | 1e-8 |
+| CaseHOLD | 65.5 | 77.3 | +11.8 [+10.4, +13.2] | 65.5 | 77.3 | +11.8 [+10.4, +13.3] | 618 / 193 | 1e-52 |
+| Arithmetic mean | 62.1 | 69.9 | | 55.5 | 62.6 | | | |
+| Harmonic mean | 59.4 | 66.3 | | 53.4 | 59.3 | | | |
+
+Paired bootstrap, 1000 resamples, seed 0 (`analysis/jev-vs-kev4b.json`); ROC-AUC from
+`analysis/paired-auc-kev4b.json`.
+
+| Task | Kev-4B κ | Kev-4B ECE | Kev-4B mean conf. / accuracy | Jev ECE | Macro ROC-AUC Jev − Kev-4B [95% CI] |
+|---|---:|---:|---|---:|---|
+| ECtHR A | 0.587 | 0.095 | | 0.082 | +0.027 [+0.022, +0.034] |
+| ECtHR B | 0.643 | 0.086 | | 0.096 | +0.014 [+0.009, +0.019] |
+| SCOTUS | 0.536 | 0.080 | 0.555 / 0.593 | 0.148 | |
+| EUR-LEX | 0.327 | 0.121 | | 0.099 | +0.011 [+0.009, +0.014] |
+| LEDGAR | 0.674 | 0.244 | 0.436 / 0.680 | 0.116 | |
+| UNFAIR-ToS | 0.418 | 0.157 | | 0.073 | +0.006 [+0.003, +0.009] |
+| CaseHOLD | 0.569 | 0.053 | 0.602 / 0.655 | 0.038 | |
+
+Intent detection (`analysis/intents-jev-vs-kev4b.json`):
+
+| Benchmark | Kev-4B | Jev | Jev − Kev-4B [95% CI] | Kev-4B ECE / mean conf. |
+|---|---:|---:|---|---|
+| BANKING77 accuracy | 84.2 | 80.6 | −3.5 [−4.6, −2.3] | 0.146 / 0.696 |
+| CLINC150 overall accuracy | 76.8 | 88.9 | +12.1 [+11.1, +13.2] | 0.322 / 0.446 |
+| CLINC150 in-scope accuracy | 79.4 | 89.0 | | |
+| CLINC150 out-of-scope recall / precision | 64.9 / 69.0 | 88.1 / 81.9 | | |
+
+Findings:
+
+- **Jev beats Kev-4B on all seven LexGLUE tasks,** μ-F1 by 1.9 to 13.3 points with every
+  paired interval above zero; mean μ-F1 69.9 vs 62.1. The largest gaps are SCOTUS (+13.3) and
+  CaseHOLD (+11.8), the smallest EUR-LEX (+1.9), where both are weak. Kev-4B's mean is below
+  Luna (71.3) and fine-tuned BERT (77.4) as well. Jev also ranks multi-label candidates
+  better (macro ROC-AUC +0.006 to +0.027, all intervals above zero), so the gap is not
+  only a threshold effect.
+- **Length is part of the explanation, not all of it.** Kev-4B trained on states of at most
+  384 tokens; most LexGLUE documents are far longer. But CaseHOLD (no document truncated)
+  shows the second-largest gap, and LEDGAR clauses (0 truncated) show +7.3, so
+  short inputs do not close it. This run does not separate length from task difficulty.
+- **Kev-4B is under-confident where Jev is over-confident.** Its mean confidence is below
+  its accuracy on every single-label task, most on the largest label sets: LEDGAR (100
+  labels) 0.44 at 0.68 accuracy, ECE 0.244; CLINC150 (151) 0.45 at 0.77, ECE 0.322; BANKING77
+  (77) 0.70 at 0.84, ECE 0.146; SCOTUS (13) 0.56 at 0.59; CaseHOLD (5) 0.60 at 0.66. Jev's
+  mean confidence exceeds its accuracy on SCOTUS and LEDGAR. Kev-4B's temperature (2.41) was
+  fitted on Kev's own development data, and on Kev's suites it gives ECE 0.017 to 0.019
+  (section above): the fit did not carry over to these tasks. Why it fails most on large
+  label sets is not tested here.
+- **BANKING77 is the one win for Kev-4B, and BANKING77 is one of Kev's training datasets**
+  (`decision-v7`, held-out items from those datasets, includes it). It is not a zero-shot
+  result. On CLINC150, which Kev did not train on, Jev leads by 12.1
+  points and finds out-of-scope requests far better (recall 88.1 vs 64.9).
+- **The two models disagree less than the F1 gap suggests** (inter-model κ 0.62 to 0.79 on
+  LexGLUE): where one is right the other usually is too, and the gap comes from the cases
+  only Jev gets right (e.g. LEDGAR 1,068 vs 336, CaseHOLD 618 vs 193).
+- Single run, one checkpoint, one serving configuration (bf16 on L40S). Kev-4B's served
+  accuracy on Kev's own suites matched its published fp32 numbers within 0.003, so the
+  serving path is not a likely cause of the LexGLUE gap.

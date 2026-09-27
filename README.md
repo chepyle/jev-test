@@ -20,10 +20,13 @@ Full test split (23,607 examples), zero-shot, micro-F1 arithmetic mean across th
 | Jev (`typesafe/jev-1.13-20260917`) | System One | 69.9 | 62.6 | $4.02 |
 | Jev, per-label thresholds tuned on validation | System One | 74.2 | 66.3 | +$2.47 |
 | GPT-5.6 Luna (`openai/gpt-5.6-luna`) | chat, JSON schema | 71.3 | 63.9 | $16.45 |
+| Kev-4B (`jaredpalmer/kev-4b`, open weights, self-served) | System One | 62.1 | 55.5 | ≤ $8.01 GPU |
 | BERT-base, fine-tuned (reproduced, seed 1) | supervised | 77.4 | 69.3 | $21.58 GPU |
 
-The two zero-shot models are close: Luna is ahead on ECtHR A/B, EUR-LEX, and UNFAIR-ToS, Jev on
-SCOTUS and LEDGAR, and CaseHOLD is a tie. Both beat fine-tuned BERT on CaseHOLD and trail it by
+Jev and Luna are close: Luna is ahead on ECtHR A/B, EUR-LEX, and UNFAIR-ToS, Jev on SCOTUS and
+LEDGAR, and CaseHOLD is a tie. Kev-4B, an open-weight 4B model that serves the same API, trails
+Jev on all seven tasks (1.9 to 13.3 μ-F1, every paired interval above zero); on Kev's own
+held-out suite Jev also leads it by 3.8 points, while Kev-4B leads on its training sources. Both beat fine-tuned BERT on CaseHOLD and trail it by
 13 to 29 points on EUR-LEX, LEDGAR, and UNFAIR-ToS. Choosing Jev's per-label thresholds on the
 validation split (no test data, no training examples) cuts its gap to BERT from 7.5 to 3.2 μ-F1.
 Outside law, Jev trails published fine-tuned BERT on fine-grained intents (BANKING77 80.6 vs
@@ -218,12 +221,13 @@ it, so it should not be interpreted as isolated model inference latency.
 
 ## Kev's suites
 
-`kev_suites/` scores Jev and GPT-5.6 Luna on [Kev](https://github.com/jaredpalmer/kev)'s
-frozen `transfer-v4` and `decision-v7` suites with Kev's own scorer, next to Kev-4B's published
-numbers ([`RESULTS.md`](RESULTS.md#keys-suites-jev-and-luna-on-the-kev-benchmark-with-kev-4bs-published-numbers)).
+[Kev](https://github.com/jaredpalmer/kev) is an open-weight model family that serves the System
+One API. Kev-4B is served on Modal with Kev's own deploy script and scored on LexGLUE and the
+intent suite with the same `jev-bench run` requests as Jev. `kev_suites/` scores Jev, GPT-5.6
+Luna and Kev-4B on Kev's frozen `transfer-v4` and `decision-v7` suites with Kev's own scorer.
 Kev is cloned at a pinned commit into the git-ignored `third_party/`. Luna goes through
 `jev_test.chatshim`, a local System One endpoint backed by chat JSON, which caches answers so a
-rerun makes no new calls.
+rerun makes no new calls. Results in [`RESULTS.md`](RESULTS.md).
 
 ```bash
 git clone https://github.com/jaredpalmer/kev third_party/kev && git -C third_party/kev checkout 5920c5f
@@ -231,7 +235,15 @@ git clone https://github.com/jaredpalmer/kev third_party/kev && git -C third_par
 kev_suites/run_jev.sh
 uv run python -m jev_test.chatshim --model openai/gpt-5.6-luna --cache results/kev-suites/luna-cache &
 kev_suites/run_luna.sh
+# Kev-4B endpoint: bearer key in a Modal secret, 64k-token context from Kev 5920c5f
+uvx modal secret create kev-serve-key KEV_API_KEY="$KEV_API_KEY"
+(cd third_party/kev/skills/kev-finetune/scripts && KEV_REF=5920c5fe4ca8e0970ed4209ac2c9b8e18bea5109 \
+  KEV_APP_NAME=jev-test-kev KEV_SERVE_GPU=L40S KEV_SERVE_SECRET=kev-serve-key uvx modal deploy kev_modal.py)
+KEV_URL=https://<workspace>--jev-test-kev-api.modal.run kev_suites/run_kev.sh
 uv run python kev_suites/summarize.py > analysis/kev-suites.md
+# LexGLUE and intents: the runner sends its key from OPENROUTER_API_KEY
+OPENROUTER_API_KEY=$KEV_API_KEY uv run python jobs/launch.py kev4b-full data/full-test results/kev4b-full \
+  --model kev-latest --endpoint "$KEV_URL/v1/systemone" --concurrency 24 --timeout 300
 ```
 
 ## Fine-tuned BERT baseline
