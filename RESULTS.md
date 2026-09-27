@@ -396,7 +396,7 @@ BANKING77, plus generated policies and rules).
   - Jev on `transfer-v4` dev: Kev published accuracy 0.857, ECE 0.049, Brier 0.211 (via
     Vercel AI Gateway); this run gives 0.855, 0.049, 0.211 via OpenRouter (1 of 656 answers
     differs).
-  - Kev-4B: our served accuracy is within 0.003 of Kev's published fp32 numbers on every
+  - Kev-4B: our served accuracy is within 0.004 of Kev's published fp32 numbers on every
     split (test: 0.838 vs 0.838, 0.866 vs 0.865), ECE within 0.005.
   - Serving code: the same four splits served at Kev `f2bb629` (8k-token context) and
     `5920c5f` (64k) differ by 0 to 4 argmax answers per split, accuracy by at most 0.0015,
@@ -523,5 +523,5 @@ Findings:
   LexGLUE): where one is right the other usually is too, and the gap comes from the cases
   only Jev gets right (e.g. LEDGAR 1,068 vs 336, CaseHOLD 618 vs 193).
 - Single run, one checkpoint, one serving configuration (bf16 on L40S). Kev-4B's served
-  accuracy on Kev's own suites matched its published fp32 numbers within 0.003, so the
+  accuracy on Kev's own suites matched its published fp32 numbers within 0.004, so the
   serving path is not a likely cause of the LexGLUE gap.

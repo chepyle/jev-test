@@ -28,7 +28,7 @@ PUBLISHED = {  # read from the papers' tables, see RESULTS.md
     "banking77": {"bert_full": 93.66, "bert_10shot": 83.42, "bert_30shot": 90.03},
     "clinc150": {"bert_in_scope": 96.7, "bert_oos_recall": 59.2, "best_oos_recall": 66.0},
 }
-COMMIT = "d255fec"
+COMMIT = "600c402"
 
 
 def load(path: str) -> dict:
@@ -60,6 +60,8 @@ def top_confusions(records: dict, task: str, count: int) -> tuple[int, list]:
 
 def build() -> dict:
     three = load("analysis/three-way.json")
+    kev = load("analysis/jev-vs-kev4b.json")
+    kev_auc = load("analysis/paired-auc-kev4b.json")["tasks"]
     tuning = load("analysis/threshold-tuning.json")["tasks"]
     intents = load("analysis/intents-test.json")["sources"]["jev"]
     src = three["sources"]
@@ -90,6 +92,28 @@ def build() -> dict:
             row["delta_bert_tuned"] = {"d": pct(d["delta"]), "ci": [pct(x) for x in d["ci95"]]}
         else:
             row["delta_bert_tuned"] = {"d": row["delta_bert"]["d"], "ci": row["delta_bert"]["ci"]}
+        k = kev["sources"]["kev4b"][t]
+        row["kev4b"] = {
+            "micro": pct(k["metrics"]["micro_f1"]),
+            "macro": pct(k["metrics"]["macro_f1"]),
+            "ci": [pct(x) for x in k["ci95"]["micro_f1"]],
+            "ece": round(k["metrics"]["ece"], 3),
+        }
+        row["jev"]["ece"] = round(src["jev"][t]["metrics"]["ece"], 3)
+        vs_kev = kev["paired"]["jev_vs_kev4b"][t]
+        row["delta_kev"] = {
+            "d": pct(vs_kev["delta_micro_f1"]),
+            "ci": [pct(x) for x in vs_kev["delta_micro_f1_ci95"]],
+            "p": vs_kev["mcnemar_exact_p"],
+            "only_jev": vs_kev["exact_correct_only_a"],
+            "only_kev": vs_kev["exact_correct_only_b"],
+        }
+        if t in kev_auc:
+            a = kev_auc[t]
+            row["auc_kev"] = {
+                "d": round(a["delta"], 3),
+                "ci": [round(x, 3) for x in a["delta_ci95"]],
+            }
         vs_luna = three["paired"]["jev_vs_luna"][t]
         row["delta_luna"] = {
             "d": pct(vs_luna["delta_micro_f1"]),
@@ -109,9 +133,9 @@ def build() -> dict:
 
     means = {
         k: {"micro": mean(k, "micro"), "macro": mean(k, "macro")}
-        for k in ("jev", "jev_tuned", "luna", "bert")
+        for k in ("jev", "jev_tuned", "luna", "bert", "kev4b")
     }
-    expected = {"jev": 69.9, "jev_tuned": 74.2, "luna": 71.3, "bert": 77.4}
+    expected = {"jev": 69.9, "jev_tuned": 74.2, "luna": 71.3, "bert": 77.4, "kev4b": 62.1}
     for k, v in expected.items():  # RESULTS.md means are computed from unrounded scores
         assert abs(means[k]["micro"] - v) <= 0.1, (k, means[k]["micro"], v)
 
@@ -136,6 +160,58 @@ def build() -> dict:
         return round(load(path)["usage"]["reported_cost_usd"], 2)
 
     b77, clinc = intents["banking77"], intents["clinc150"]
+    kev_intents = load("analysis/intents-jev-vs-kev4b.json")
+    kb77, kclinc = (kev_intents["sources"]["kev4b"][t] for t in ("banking77", "clinc150"))
+    kev_pairs = kev_intents["paired"]["jev_vs_kev4b"]
+    suites = load("analysis/kev-suites.json")
+    kev_suites = []
+    for key, e in suites["splits"].items():
+        suite, split = key.rsplit("-", 1)
+        kev_suites.append(
+            {
+                "key": key,
+                "label": f"{suite} {split}",
+                "held_out": suite == "transfer-v4",
+                "n": e["n_questions"],
+                "acc": {m: round(e["models"][m]["acc"] * 100, 1) for m in ("jev", "luna", "kev4b")},
+                "ece": {m: round(e["models"][m]["ece"], 3) for m in ("jev", "kev4b")},
+                **{
+                    f"vs_{m}": {
+                        "d": round(e[f"jev_minus_{m}"]["acc"] * 100, 1),
+                        "ci": [round(x * 100, 1) for x in e[f"jev_minus_{m}"]["ci"]],
+                    }
+                    for m in ("luna", "kev4b")
+                },
+            }
+        )
+    kev_block = {
+        "suites": kev_suites,
+        "intents": {
+            "banking77": {
+                "acc": pct(kb77["metrics"]["accuracy"]),
+                "ece": round(kb77["metrics"]["ece"], 3),
+                "conf": pct(kb77["metrics"]["mean_confidence"]),
+                "d": pct(kev_pairs["banking77"]["delta_micro_f1"]),
+                "ci": [pct(x) for x in kev_pairs["banking77"]["delta_micro_f1_ci95"]],
+            },
+            "clinc150": {
+                "acc": pct(kclinc["metrics"]["accuracy"]),
+                "in_scope": pct(kclinc["metrics"]["in_scope_accuracy"]),
+                "oos_recall": pct(kclinc["metrics"]["oos_recall"]),
+                "ece": round(kclinc["metrics"]["ece"], 3),
+                "conf": pct(kclinc["metrics"]["mean_confidence"]),
+                "d": pct(kev_pairs["clinc150"]["delta_micro_f1"]),
+                "ci": [pct(x) for x in kev_pairs["clinc150"]["delta_micro_f1_ci95"]],
+            },
+        },
+        "confidence": {
+            t: {
+                "acc": pct(kev["sources"]["kev4b"][t]["metrics"]["accuracy"]),
+                "conf": pct(kev["sources"]["kev4b"][t]["metrics"]["mean_confidence"]),
+            }
+            for t in ("scotus", "ledgar", "case_hold")
+        },
+    }
     return {
         "commit": COMMIT,
         "tasks": tasks,
@@ -146,7 +222,10 @@ def build() -> dict:
             "jev_validation": cost("results/jev-val-multilabel/metrics.json"),
             "intents": cost("results/jev-intents-test/metrics.json"),
             "bert_gpu": 21.58,
+            "kev_gpu": 8.01,  # Modal billing report for app jev-test-kev, see RESULTS.md
+            "kev_suites_openrouter": 0.42,
         },
+        "kev": kev_block,
         "confusions": {
             "ledgar": {"errors": ledgar_errors, "pairs": ledgar_pairs},
             "banking77": {"errors": banking_errors, "pairs": banking_pairs},
@@ -157,6 +236,7 @@ def build() -> dict:
                 "n": b77["n"],
                 "acc": pct(b77["metrics"]["accuracy"]),
                 "ci": [pct(x) for x in b77["ci95"]["micro_f1"]],
+                "ece": round(b77["metrics"]["ece"], 3),
                 **PUBLISHED["banking77"],
             },
             "clinc150": {
@@ -166,6 +246,8 @@ def build() -> dict:
                 "oos_recall": pct(clinc["metrics"]["oos_recall"]),
                 "oos_ci": [pct(x) for x in clinc["ci95"]["oos_recall"]],
                 "oos_precision": pct(clinc["metrics"]["oos_precision"]),
+                "acc": pct(clinc["metrics"]["accuracy"]),
+                "ece": round(clinc["metrics"]["ece"], 3),
                 **PUBLISHED["clinc150"],
             },
         },

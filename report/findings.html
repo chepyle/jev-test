@@ -78,7 +78,7 @@ section { display: grid; gap: 18px; }
 a { color: var(--accent); }
 a:focus-visible, [tabindex]:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 12px; }
 .tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 16px; display: grid; gap: 6px; align-content: start; }
 .tile .label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
 .tile .value { font-size: 34px; font-weight: 600; line-height: 1.1; }
@@ -153,7 +153,7 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
   <header>
     <div class="eyebrow">Zero-shot evaluation · LexGLUE + intent detection</div>
     <h1>Jev on legal and intent classification</h1>
-    <p class="lede">TypeSafe's Jev answered every test question in LexGLUE's seven legal tasks without seeing a single training example. We compared it with GPT-5.6 Luna under the same instructions and with BERT fine-tuned on each task, then checked the pattern on two intent-detection benchmarks.</p>
+    <p class="lede">TypeSafe's Jev answered every test question in LexGLUE's seven legal tasks without seeing a single training example. We compared it with GPT-5.6 Luna under the same instructions, with BERT fine-tuned on each task, and with Kev-4B, an open-weight model that serves the same API, then checked the pattern on two intent-detection benchmarks and on Kev's own test suites.</p>
   </header>
 
   <section aria-labelledby="summary-h">
@@ -209,6 +209,32 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
     </div>
   </section>
 
+  <section aria-labelledby="kev-h">
+    <h2 id="kev-h">An open-weight look-alike: Kev-4B</h2>
+    <p>Kev is a family of open-weight models on Qwen bases that answer TypeSafe's System One API, so Kev-4B received exactly the requests Jev did. We served it ourselves on a Modal GPU with Kev's own deployment script. On Kev's own suites our served copy matched its published scores within 0.4 points, so the serving path is not what separates the two.</p>
+    <div class="card">
+      <div class="card-head">
+        <h3>Jev minus Kev-4B, paired, on every task both answered</h3>
+        <p>Right of zero, Jev scores higher. LexGLUE tasks in micro-F1 points; intent benchmarks in accuracy points. Kev-4B was trained on BANKING77.</p>
+      </div>
+      <div class="chart" id="chart-d" role="img" aria-label="Paired differences between Jev and Kev-4B by task"></div>
+      <details><summary>Show table</summary><div class="table-wrap" id="table-d"></div></details>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h3>On Kev's own test suites, accuracy points</h3>
+        <p>Differences from Jev on the same questions. <b>transfer-v4</b> holds datasets Kev never trained on; <b>decision-v7</b> holds held-out items from Kev's training datasets, so Kev-4B is in-distribution there and Jev and Luna are zero-shot.</p>
+      </div>
+      <div class="legend" id="legend-e"></div>
+      <div class="chart" id="chart-e" role="img" aria-label="Paired differences from Jev on Kev's suites for Kev-4B and Luna"></div>
+      <details><summary>Show table</summary><div class="table-wrap" id="table-e"></div></details>
+    </div>
+    <p>Calibration moves in opposite directions. Jev is over-confident on SCOTUS and LEDGAR. Kev-4B ships with a temperature fitted on its own development data, which makes it well calibrated on its own suites and under-confident on these tasks, most of all on the largest label sets:</p>
+    <div class="card">
+      <div class="table-wrap" id="table-cal"></div>
+    </div>
+  </section>
+
   <section aria-labelledby="intents-h">
     <h2 id="intents-h">The same pattern outside law</h2>
     <p>BANKING77 and CLINC150 have fine-grained intents and published fine-tuned baselines. Jev trails on fine-grained intents, like LEDGAR, and beats fine-tuning at noticing that a request fits none of the intents, a judgment call like CaseHOLD.</p>
@@ -236,6 +262,8 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
       <li><b>Threshold tuning is Jev only.</b> It used validation data only, which the protocol allows, but Luna and BERT were not given an equivalent step.</li>
       <li><b>One BERT seed.</b> The reproduction lands within 1.1 micro-F1 of the published five-seed means, so differences under about one point should not be read as real.</li>
       <li><b>Published baselines for the intent benchmarks.</b> Those comparisons are not paired, and the BANKING77 baseline is BERT-large.</li>
+      <li><b>Kev-4B is not zero-shot everywhere.</b> BANKING77 and the decision-v7 suite come from its training datasets. It also trained on inputs of at most 384 tokens, far shorter than most LexGLUE documents; the gap on short-input tasks (CaseHOLD, LEDGAR) shows length is not the whole story, but this study does not separate the two.</li>
+      <li><b>One Kev-4B serving configuration.</b> bf16 on one GPU type, one checkpoint, one run.</li>
       <li><b>Possible training-data overlap.</b> Every dataset used here was public before these models were trained.</li>
     </ul>
   </section>
@@ -245,13 +273,14 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
 <div id="tip" hidden></div>
 
 <script>
-const DATA = {"commit": "d255fec", "tasks": [{"task": "ecthr_a", "label": "ECtHR A", "multilabel": true, "jev": {"micro": 73.0, "macro": 71.3, "ci": [71.0, 74.9]}, "luna": {"micro": 78.9, "macro": 75.4, "ci": [76.9, 80.8]}, "bert": {"micro": 70.3, "macro": 61.9, "ci": [67.9, 72.6]}, "jev_tuned": {"micro": 74.3, "macro": 73.8}, "delta_bert": {"d": 2.7, "ci": [0.5, 4.8], "p": 0.011502551110428635}, "delta_bert_tuned": {"d": 4.0, "ci": [1.8, 6.4]}, "delta_luna": {"d": -5.9, "ci": [-7.4, -4.2]}, "thresholds": {"global": 0.65, "default": {"micro_f1": 73.0, "macro_f1": 71.3, "exact_match": 49.9}, "per_task": {"micro_f1": 74.0, "macro_f1": 70.6, "exact_match": 57.5}, "per_label": {"micro_f1": 74.3, "macro_f1": 73.8, "exact_match": 59.4}}}, {"task": "ecthr_b", "label": "ECtHR B", "multilabel": true, "jev": {"micro": 75.4, "macro": 72.6, "ci": [73.9, 76.7]}, "luna": {"micro": 78.8, "macro": 73.3, "ci": [77.4, 80.1]}, "bert": {"micro": 78.6, "macro": 72.5, "ci": [76.9, 80.1]}, "jev_tuned": {"micro": 80.0, "macro": 74.3}, "delta_bert": {"d": -3.2, "ci": [-4.9, -1.4], "p": 2.677903186990283e-13}, "delta_bert_tuned": {"d": 1.4, "ci": [-0.2, 3.1]}, "delta_luna": {"d": -3.4, "ci": [-4.5, -2.2]}, "thresholds": {"global": 0.75, "default": {"micro_f1": 75.4, "macro_f1": 72.6, "exact_match": 40.8}, "per_task": {"micro_f1": 80.2, "macro_f1": 75.5, "exact_match": 56.4}, "per_label": {"micro_f1": 80.0, "macro_f1": 74.3, "exact_match": 58.1}}}, {"task": "scotus", "label": "SCOTUS", "multilabel": false, "jev": {"micro": 72.6, "macro": 62.1, "ci": [70.1, 74.9]}, "luna": {"micro": 68.3, "macro": 59.7, "ci": [65.9, 70.5]}, "bert": {"micro": 67.2, "macro": 60.7, "ci": [64.9, 69.8]}, "jev_tuned": {"micro": 72.6, "macro": 62.1}, "delta_bert": {"d": 5.4, "ci": [2.5, 8.1], "p": 0.00031027699338222154}, "delta_bert_tuned": {"d": 5.4, "ci": [2.5, 8.1]}, "delta_luna": {"d": 4.3, "ci": [2.4, 6.3]}}, {"task": "eurlex", "label": "EUR-LEX", "multilabel": true, "jev": {"micro": 39.1, "macro": 37.0, "ci": [38.7, 39.4]}, "luna": {"micro": 42.9, "macro": 39.3, "ci": [42.4, 43.4]}, "bert": {"micro": 71.6, "macro": 56.5, "ci": [71.1, 72.1]}, "jev_tuned": {"micro": 47.9, "macro": 45.4}, "delta_bert": {"d": -32.5, "ci": [-33.1, -31.9], "p": 4.909093465297727e-91}, "delta_bert_tuned": {"d": -23.6, "ci": [-24.2, -23.1]}, "delta_luna": {"d": -3.9, "ci": [-4.3, -3.4]}, "thresholds": {"global": 0.7, "default": {"micro_f1": 39.1, "macro_f1": 37.0, "exact_match": 0.0}, "per_task": {"micro_f1": 39.4, "macro_f1": 35.1, "exact_match": 0.0}, "per_label": {"micro_f1": 47.9, "macro_f1": 45.4, "exact_match": 0.0}}}, {"task": "ledgar", "label": "LEDGAR", "multilabel": false, "jev": {"micro": 75.3, "macro": 63.3, "ci": [74.5, 76.1]}, "luna": {"micro": 74.7, "macro": 62.2, "ci": [73.8, 75.5]}, "bert": {"micro": 88.0, "macro": 82.4, "ci": [87.4, 88.6]}, "jev_tuned": {"micro": 75.3, "macro": 63.3}, "delta_bert": {"d": -12.7, "ci": [-13.5, -11.8], "p": 1.228340511130684e-193}, "delta_bert_tuned": {"d": -12.7, "ci": [-13.5, -11.8]}, "delta_luna": {"d": 0.7, "ci": [0.1, 1.3]}}, {"task": "unfair_tos", "label": "UNFAIR-ToS", "multilabel": true, "jev": {"micro": 76.4, "macro": 54.4, "ci": [74.5, 78.5]}, "luna": {"micro": 78.8, "macro": 60.9, "ci": [76.9, 80.7]}, "bert": {"micro": 95.2, "macro": 80.0, "ci": [94.1, 96.2]}, "jev_tuned": {"micro": 91.9, "macro": 67.9}, "delta_bert": {"d": -18.8, "ci": [-20.9, -16.7], "p": 5.320727559534854e-69}, "delta_bert_tuned": {"d": -3.3, "ci": [-4.8, -1.9]}, "delta_luna": {"d": -2.4, "ci": [-4.0, -0.8]}, "thresholds": {"global": 0.9, "default": {"micro_f1": 76.4, "macro_f1": 54.4, "exact_match": 75.2}, "per_task": {"micro_f1": 90.6, "macro_f1": 35.2, "exact_match": 90.7}, "per_label": {"micro_f1": 91.9, "macro_f1": 67.9, "exact_match": 91.4}}}, {"task": "case_hold", "label": "CaseHOLD", "multilabel": false, "jev": {"micro": 77.3, "macro": 77.3, "ci": [75.8, 78.7]}, "luna": {"micro": 76.8, "macro": 76.8, "ci": [75.5, 78.1]}, "bert": {"micro": 70.8, "macro": 70.8, "ci": [69.5, 72.3]}, "jev_tuned": {"micro": 77.3, "macro": 77.3}, "delta_bert": {"d": 6.5, "ci": [4.8, 8.0], "p": 5.428188615244636e-15}, "delta_bert_tuned": {"d": 6.5, "ci": [4.8, 8.0]}, "delta_luna": {"d": 0.5, "ci": [-0.9, 1.9]}}], "means": {"jev": {"micro": 69.9, "macro": 62.6}, "jev_tuned": {"micro": 74.2, "macro": 66.3}, "luna": {"micro": 71.3, "macro": 63.9}, "bert": {"micro": 77.4, "macro": 69.3}}, "costs": {"jev": 4.02, "luna": 16.45, "jev_validation": 2.47, "intents": 0.78, "bert_gpu": 21.58}, "confusions": {"ledgar": {"errors": 2468, "pairs": [["Waivers", "No Waivers", 98], ["Withholdings", "Tax Withholdings", 94], ["Definitions", "Defined Terms", 76], ["Organizations", "Existence", 56], ["Governing Laws", "Submission To Jurisdiction", 55]]}, "banking77": {"errors": 596, "pairs": [["get physical card", "change pin", 30], ["order physical card", "get physical card", 27], ["beneficiary not allowed", "failed transfer", 18], ["direct debit payment not recognised", "card payment not recognised", 16]]}, "pin_examples": ["What do I do with my card PIN?", "I do not have my pin", "Are PIN separately?"]}, "intents": {"banking77": {"n": 3080, "acc": 80.6, "ci": [79.3, 81.9], "bert_full": 93.66, "bert_10shot": 83.42, "bert_30shot": 90.03}, "clinc150": {"n": 5500, "in_scope": 89.0, "in_scope_ci": [88.2, 89.9], "oos_recall": 88.1, "oos_ci": [86.1, 90.1], "oos_precision": 81.9, "bert_in_scope": 96.7, "bert_oos_recall": 59.2, "best_oos_recall": 66.0}}};
+const DATA = {"commit": "600c402", "tasks": [{"task": "ecthr_a", "label": "ECtHR A", "multilabel": true, "jev": {"micro": 73.0, "macro": 71.3, "ci": [71.0, 74.9], "ece": 0.082}, "luna": {"micro": 78.9, "macro": 75.4, "ci": [76.9, 80.8]}, "bert": {"micro": 70.3, "macro": 61.9, "ci": [67.9, 72.6]}, "jev_tuned": {"micro": 74.3, "macro": 73.8}, "delta_bert": {"d": 2.7, "ci": [0.5, 4.8], "p": 0.011502551110428635}, "delta_bert_tuned": {"d": 4.0, "ci": [1.8, 6.4]}, "kev4b": {"micro": 63.8, "macro": 60.4, "ci": [61.7, 65.9], "ece": 0.095}, "delta_kev": {"d": 9.1, "ci": [7.2, 11.0], "p": 1.6858536883940255e-06, "only_jev": 190, "only_kev": 107}, "auc_kev": {"d": 0.027, "ci": [0.022, 0.034]}, "delta_luna": {"d": -5.9, "ci": [-7.4, -4.2]}, "thresholds": {"global": 0.65, "default": {"micro_f1": 73.0, "macro_f1": 71.3, "exact_match": 49.9}, "per_task": {"micro_f1": 74.0, "macro_f1": 70.6, "exact_match": 57.5}, "per_label": {"micro_f1": 74.3, "macro_f1": 73.8, "exact_match": 59.4}}}, {"task": "ecthr_b", "label": "ECtHR B", "multilabel": true, "jev": {"micro": 75.4, "macro": 72.6, "ci": [73.9, 76.7], "ece": 0.096}, "luna": {"micro": 78.8, "macro": 73.3, "ci": [77.4, 80.1]}, "bert": {"micro": 78.6, "macro": 72.5, "ci": [76.9, 80.1]}, "jev_tuned": {"micro": 80.0, "macro": 74.3}, "delta_bert": {"d": -3.2, "ci": [-4.9, -1.4], "p": 2.677903186990283e-13}, "delta_bert_tuned": {"d": 1.4, "ci": [-0.2, 3.1]}, "kev4b": {"micro": 70.8, "macro": 65.4, "ci": [69.0, 72.4], "ece": 0.086}, "delta_kev": {"d": 4.6, "ci": [2.8, 6.3], "p": 0.7295309831509958, "only_jev": 154, "only_kev": 147}, "auc_kev": {"d": 0.014, "ci": [0.009, 0.019]}, "delta_luna": {"d": -3.4, "ci": [-4.5, -2.2]}, "thresholds": {"global": 0.75, "default": {"micro_f1": 75.4, "macro_f1": 72.6, "exact_match": 40.8}, "per_task": {"micro_f1": 80.2, "macro_f1": 75.5, "exact_match": 56.4}, "per_label": {"micro_f1": 80.0, "macro_f1": 74.3, "exact_match": 58.1}}}, {"task": "scotus", "label": "SCOTUS", "multilabel": false, "jev": {"micro": 72.6, "macro": 62.1, "ci": [70.1, 74.9], "ece": 0.148}, "luna": {"micro": 68.3, "macro": 59.7, "ci": [65.9, 70.5]}, "bert": {"micro": 67.2, "macro": 60.7, "ci": [64.9, 69.8]}, "jev_tuned": {"micro": 72.6, "macro": 62.1}, "delta_bert": {"d": 5.4, "ci": [2.5, 8.1], "p": 0.00031027699338222154}, "delta_bert_tuned": {"d": 5.4, "ci": [2.5, 8.1]}, "kev4b": {"micro": 59.3, "macro": 57.6, "ci": [56.7, 61.8], "ece": 0.08}, "delta_kev": {"d": 13.3, "ci": [10.9, 15.4], "p": 1.4475275291628744e-31, "only_jev": 230, "only_kev": 44}, "delta_luna": {"d": 4.3, "ci": [2.4, 6.3]}}, {"task": "eurlex", "label": "EUR-LEX", "multilabel": true, "jev": {"micro": 39.1, "macro": 37.0, "ci": [38.7, 39.4], "ece": 0.099}, "luna": {"micro": 42.9, "macro": 39.3, "ci": [42.4, 43.4]}, "bert": {"micro": 71.6, "macro": 56.5, "ci": [71.1, 72.1]}, "jev_tuned": {"micro": 47.9, "macro": 45.4}, "delta_bert": {"d": -32.5, "ci": [-33.1, -31.9], "p": 4.909093465297727e-91}, "delta_bert_tuned": {"d": -23.6, "ci": [-24.2, -23.1]}, "kev4b": {"micro": 37.2, "macro": 36.0, "ci": [36.9, 37.5], "ece": 0.121}, "delta_kev": {"d": 1.9, "ci": [1.6, 2.2], "p": 1.0, "only_jev": 0, "only_kev": 0}, "auc_kev": {"d": 0.011, "ci": [0.009, 0.014]}, "delta_luna": {"d": -3.9, "ci": [-4.3, -3.4]}, "thresholds": {"global": 0.7, "default": {"micro_f1": 39.1, "macro_f1": 37.0, "exact_match": 0.0}, "per_task": {"micro_f1": 39.4, "macro_f1": 35.1, "exact_match": 0.0}, "per_label": {"micro_f1": 47.9, "macro_f1": 45.4, "exact_match": 0.0}}}, {"task": "ledgar", "label": "LEDGAR", "multilabel": false, "jev": {"micro": 75.3, "macro": 63.3, "ci": [74.5, 76.1], "ece": 0.116}, "luna": {"micro": 74.7, "macro": 62.2, "ci": [73.8, 75.5]}, "bert": {"micro": 88.0, "macro": 82.4, "ci": [87.4, 88.6]}, "jev_tuned": {"micro": 75.3, "macro": 63.3}, "delta_bert": {"d": -12.7, "ci": [-13.5, -11.8], "p": 1.228340511130684e-193}, "delta_bert_tuned": {"d": -12.7, "ci": [-13.5, -11.8]}, "kev4b": {"micro": 68.0, "macro": 56.2, "ci": [67.1, 68.9], "ece": 0.244}, "delta_kev": {"d": 7.3, "ci": [6.6, 8.0], "p": 5.685678209404314e-89, "only_jev": 1068, "only_kev": 336}, "delta_luna": {"d": 0.7, "ci": [0.1, 1.3]}}, {"task": "unfair_tos", "label": "UNFAIR-ToS", "multilabel": true, "jev": {"micro": 76.4, "macro": 54.4, "ci": [74.5, 78.5], "ece": 0.073}, "luna": {"micro": 78.8, "macro": 60.9, "ci": [76.9, 80.7]}, "bert": {"micro": 95.2, "macro": 80.0, "ci": [94.1, 96.2]}, "jev_tuned": {"micro": 91.9, "macro": 67.9}, "delta_bert": {"d": -18.8, "ci": [-20.9, -16.7], "p": 5.320727559534854e-69}, "delta_bert_tuned": {"d": -3.3, "ci": [-4.8, -1.9]}, "kev4b": {"micro": 69.9, "macro": 47.3, "ci": [67.9, 72.1], "ece": 0.157}, "delta_kev": {"d": 6.5, "ci": [4.6, 8.5], "p": 1.127261787540323e-08, "only_jev": 221, "only_kev": 116}, "auc_kev": {"d": 0.006, "ci": [0.003, 0.009]}, "delta_luna": {"d": -2.4, "ci": [-4.0, -0.8]}, "thresholds": {"global": 0.9, "default": {"micro_f1": 76.4, "macro_f1": 54.4, "exact_match": 75.2}, "per_task": {"micro_f1": 90.6, "macro_f1": 35.2, "exact_match": 90.7}, "per_label": {"micro_f1": 91.9, "macro_f1": 67.9, "exact_match": 91.4}}}, {"task": "case_hold", "label": "CaseHOLD", "multilabel": false, "jev": {"micro": 77.3, "macro": 77.3, "ci": [75.8, 78.7], "ece": 0.038}, "luna": {"micro": 76.8, "macro": 76.8, "ci": [75.5, 78.1]}, "bert": {"micro": 70.8, "macro": 70.8, "ci": [69.5, 72.3]}, "jev_tuned": {"micro": 77.3, "macro": 77.3}, "delta_bert": {"d": 6.5, "ci": [4.8, 8.0], "p": 5.428188615244636e-15}, "delta_bert_tuned": {"d": 6.5, "ci": [4.8, 8.0]}, "kev4b": {"micro": 65.5, "macro": 65.5, "ci": [64.0, 67.0], "ece": 0.053}, "delta_kev": {"d": 11.8, "ci": [10.4, 13.2], "p": 1.3085999472206539e-52, "only_jev": 618, "only_kev": 193}, "delta_luna": {"d": 0.5, "ci": [-0.9, 1.9]}}], "means": {"jev": {"micro": 69.9, "macro": 62.6}, "jev_tuned": {"micro": 74.2, "macro": 66.3}, "luna": {"micro": 71.3, "macro": 63.9}, "bert": {"micro": 77.4, "macro": 69.3}, "kev4b": {"micro": 62.1, "macro": 55.5}}, "costs": {"jev": 4.02, "luna": 16.45, "jev_validation": 2.47, "intents": 0.78, "bert_gpu": 21.58, "kev_gpu": 8.01, "kev_suites_openrouter": 0.42}, "kev": {"suites": [{"key": "transfer-v4-dev", "label": "transfer-v4 dev", "held_out": true, "n": 656, "acc": {"jev": 85.5, "luna": 88.1, "kev4b": 81.4}, "ece": {"jev": 0.049, "kev4b": 0.037}, "vs_luna": {"d": -2.6, "ci": [-5.1, -0.3]}, "vs_kev4b": {"d": 4.1, "ci": [1.2, 7.2]}}, {"key": "transfer-v4-test", "label": "transfer-v4 test", "held_out": true, "n": 656, "acc": {"jev": 87.7, "luna": 89.8, "kev4b": 83.8}, "ece": {"jev": 0.035, "kev4b": 0.017}, "vs_luna": {"d": -2.1, "ci": [-4.3, -0.2]}, "vs_kev4b": {"d": 3.8, "ci": [1.2, 6.7]}}, {"key": "decision-v7-dev", "label": "decision-v7 dev", "held_out": false, "n": 1264, "acc": {"jev": 84.5, "luna": 86.2, "kev4b": 87.1}, "ece": {"jev": 0.062, "kev4b": 0.013}, "vs_luna": {"d": -1.7, "ci": [-3.1, -0.1]}, "vs_kev4b": {"d": -2.6, "ci": [-4.6, -0.7]}}, {"key": "decision-v7-test", "label": "decision-v7 test", "held_out": false, "n": 1200, "acc": {"jev": 83.5, "luna": 84.6, "kev4b": 86.6}, "ece": {"jev": 0.056, "kev4b": 0.019}, "vs_luna": {"d": -1.1, "ci": [-2.8, 0.8]}, "vs_kev4b": {"d": -3.1, "ci": [-4.9, -1.1]}}], "intents": {"banking77": {"acc": 84.2, "ece": 0.146, "conf": 69.6, "d": -3.5, "ci": [-4.6, -2.3]}, "clinc150": {"acc": 76.8, "in_scope": 79.4, "oos_recall": 64.9, "ece": 0.322, "conf": 44.6, "d": 12.1, "ci": [11.1, 13.2]}}, "confidence": {"scotus": {"acc": 59.3, "conf": 55.5}, "ledgar": {"acc": 68.0, "conf": 43.6}, "case_hold": {"acc": 65.5, "conf": 60.2}}}, "confusions": {"ledgar": {"errors": 2468, "pairs": [["Waivers", "No Waivers", 98], ["Withholdings", "Tax Withholdings", 94], ["Definitions", "Defined Terms", 76], ["Organizations", "Existence", 56], ["Governing Laws", "Submission To Jurisdiction", 55]]}, "banking77": {"errors": 596, "pairs": [["get physical card", "change pin", 30], ["order physical card", "get physical card", 27], ["beneficiary not allowed", "failed transfer", 18], ["direct debit payment not recognised", "card payment not recognised", 16]]}, "pin_examples": ["What do I do with my card PIN?", "I do not have my pin", "Are PIN separately?"]}, "intents": {"banking77": {"n": 3080, "acc": 80.6, "ci": [79.3, 81.9], "ece": 0.089, "bert_full": 93.66, "bert_10shot": 83.42, "bert_30shot": 90.03}, "clinc150": {"n": 5500, "in_scope": 89.0, "in_scope_ci": [88.2, 89.9], "oos_recall": 88.1, "oos_ci": [86.1, 90.1], "oos_precision": 81.9, "acc": 88.9, "ece": 0.027, "bert_in_scope": 96.7, "bert_oos_recall": 59.2, "best_oos_recall": 66.0}}};
 const SVGNS = "http://www.w3.org/2000/svg";
 const MODELS = {
   jev: { name: "Jev", color: "var(--jev)", shape: "circle" },
   jev_tuned: { name: "Jev, tuned thresholds", color: "var(--jev)", shape: "ring" },
   luna: { name: "GPT-5.6 Luna", color: "var(--luna)", shape: "square" },
   bert: { name: "BERT, fine-tuned", color: "var(--bert)", shape: "triangle" },
+  kev4b: { name: "Kev-4B", color: "var(--muted)", shape: "diamond" },
 };
 
 function el(tag, attrs = {}, parent) {
@@ -273,6 +302,7 @@ function shape(g, kind, x, y, color, size = 5) {
   if (kind === "circle") s = el("circle", { cx: x, cy: y, r: size, fill: color, stroke: "var(--surface)", "stroke-width": 2 }, g);
   else if (kind === "ring") s = el("circle", { cx: x, cy: y, r: size, fill: "var(--surface)", stroke: color, "stroke-width": 2 }, g);
   else if (kind === "square") s = el("rect", { x: x - size, y: y - size, width: size * 2, height: size * 2, rx: 1.5, fill: color, stroke: "var(--surface)", "stroke-width": 2 }, g);
+  else if (kind === "diamond") s = el("path", { d: `M${x},${y - size - 1.5} L${x + size + 1.5},${y} L${x},${y + size + 1.5} L${x - size - 1.5},${y} Z`, fill: color, stroke: "var(--surface)", "stroke-width": 2, "stroke-linejoin": "round" }, g);
   else s = el("path", { d: `M${x},${y - size - 1} L${x + size + 1},${y + size} L${x - size - 1},${y + size} Z`, fill: color, stroke: "var(--surface)", "stroke-width": 2, "stroke-linejoin": "round" }, g);
   s.classList.add("shape");
   return s;
@@ -391,10 +421,11 @@ function chartB() {
     const item = h("span"); const s = el("svg", { width: 16, height: 16, viewBox: "0 0 16 16", "aria-hidden": "true" });
     shape(s, kind, 8, 8, "var(--jev)"); item.append(s, document.createTextNode(name)); lg.appendChild(item);
   });
-  table("table-b", ["Task", "Jev − BERT at 0.5", "95% CI", "Tuned Jev − BERT", "95% CI", "Jev − Luna", "95% CI"],
+  table("table-b", ["Task", "Jev − BERT at 0.5", "95% CI", "Tuned Jev − BERT", "95% CI", "Jev − Luna", "95% CI", "Jev − Kev-4B", "95% CI"],
     DATA.tasks.map((t) => [t.label, fmt(t.delta_bert.d, true), `${fmt(t.delta_bert.ci[0], true)} to ${fmt(t.delta_bert.ci[1], true)}`,
       t.multilabel ? fmt(t.delta_bert_tuned.d, true) : "same", t.multilabel ? `${fmt(t.delta_bert_tuned.ci[0], true)} to ${fmt(t.delta_bert_tuned.ci[1], true)}` : "",
-      fmt(t.delta_luna.d, true), `${fmt(t.delta_luna.ci[0], true)} to ${fmt(t.delta_luna.ci[1], true)}`]));
+      fmt(t.delta_luna.d, true), `${fmt(t.delta_luna.ci[0], true)} to ${fmt(t.delta_luna.ci[1], true)}`,
+      fmt(t.delta_kev.d, true), `${fmt(t.delta_kev.ci[0], true)} to ${fmt(t.delta_kev.ci[1], true)}`]));
 }
 
 function chartC() {
@@ -436,6 +467,79 @@ function chartC() {
     rows.map((r) => [r.group, r.metric, fmt(r.jev), `${fmt(r.ci[0])} to ${fmt(r.ci[1])}`, r.bert.toFixed(r.bert % 1 ? (String(r.bert).split(".")[1].length) : 1)]));
 }
 
+function deltaChart(boxId, rows, domain, step, leftLabel, rightLabel, marks) {
+  const box = document.getElementById(boxId);
+  const W = Math.max(560, box.clientWidth), band = marks.length > 1 ? 44 : 34, top = 24, left = 130, right = 16;
+  const H = top + rows.length * band + 28;
+  const svg = el("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+  const x = (v) => left + ((v - domain[0]) / (domain[1] - domain[0])) * (W - left - right);
+  axis(svg, x, domain, step, top, top + rows.length * band, left, right, "±");
+  const l1 = el("text", { x: x(0) - 8, y: 12, "text-anchor": "end", class: "tick" }, svg); l1.textContent = leftLabel;
+  const l2 = el("text", { x: x(0) + 8, y: 12, class: "tick" }, svg); l2.textContent = rightLabel;
+  rows.forEach((r, i) => {
+    const cy = top + i * band + band / 2;
+    const lab = el("text", { x: 0, y: cy + 4, "font-weight": 500 }, svg); lab.textContent = r.label;
+    marks.forEach(([key, kind, name], j) => {
+      const d = r[key], y = cy + (marks.length > 1 ? (j ? 7 : -7) : 0), g = el("g", {}, svg);
+      el("line", { x1: x(d.ci[0]), x2: x(d.ci[1]), y1: y, y2: y, stroke: "var(--jev)", "stroke-width": 2, "stroke-linecap": "round", opacity: 0.55 }, g);
+      el("rect", { x: x(d.ci[0]) - 6, y: y - 7, width: x(d.ci[1]) - x(d.ci[0]) + 12, height: 14, fill: "transparent", class: "hit", rx: 3 }, g);
+      shape(g, kind, x(d.d), y, "var(--jev)");
+      const verdict = d.ci[0] > 0 ? "Jev higher" : d.ci[1] < 0 ? `${name} higher` : "no clear difference";
+      attachTip(g, [`${fmt(d.d, true)} points`, `${r.label} · Jev − ${name}`, `95% CI ${fmt(d.ci[0], true)} to ${fmt(d.ci[1], true)}`, verdict]);
+    });
+  });
+  box.appendChild(svg);
+}
+
+function chartD() {
+  const K = DATA.kev;
+  const rows = DATA.tasks.map((t) => ({ label: t.label, d: t.delta_kev }))
+    .concat([
+      { label: "BANKING77", d: { d: K.intents.banking77.d, ci: K.intents.banking77.ci } },
+      { label: "CLINC150", d: { d: K.intents.clinc150.d, ci: K.intents.clinc150.ci } },
+    ]);
+  deltaChart("chart-d", rows, [-10, 20], 5, "Kev-4B higher", "Jev higher", [["d", "diamond", "Kev-4B"]]);
+  table("table-d", ["Task", "Kev-4B", "Jev", "Jev − Kev-4B", "95% CI", "Only Jev / only Kev-4B exact"],
+    DATA.tasks.map((t) => [t.label, fmt(t.kev4b.micro), fmt(t.jev.micro), fmt(t.delta_kev.d, true),
+      `${fmt(t.delta_kev.ci[0], true)} to ${fmt(t.delta_kev.ci[1], true)}`, `${t.delta_kev.only_jev} / ${t.delta_kev.only_kev}`])
+      .concat([
+        ["Mean of 7 LexGLUE tasks", fmt(DATA.means.kev4b.micro), fmt(DATA.means.jev.micro), fmt(DATA.means.jev.micro - DATA.means.kev4b.micro, true), "", ""],
+        ["BANKING77 (accuracy)", fmt(K.intents.banking77.acc), fmt(DATA.intents.banking77.acc), fmt(K.intents.banking77.d, true), `${fmt(K.intents.banking77.ci[0], true)} to ${fmt(K.intents.banking77.ci[1], true)}`, ""],
+        ["CLINC150 (accuracy)", fmt(K.intents.clinc150.acc), fmt(DATA.intents.clinc150.acc), fmt(K.intents.clinc150.d, true), `${fmt(K.intents.clinc150.ci[0], true)} to ${fmt(K.intents.clinc150.ci[1], true)}`, ""],
+      ]));
+}
+
+function chartE() {
+  const S = DATA.kev.suites;
+  const rows = S.map((s) => ({ label: s.label, kev: s.vs_kev4b, luna: s.vs_luna }));
+  deltaChart("chart-e", rows, [-10, 10], 5, "other model higher", "Jev higher", [["kev", "diamond", "Kev-4B"], ["luna", "square", "Luna"]]);
+  const lg = document.getElementById("legend-e");
+  [["diamond", "Jev − Kev-4B"], ["square", "Jev − Luna"]].forEach(([kind, name]) => {
+    const item = h("span"); const s = el("svg", { width: 16, height: 16, viewBox: "0 0 16 16", "aria-hidden": "true" });
+    shape(s, kind, 8, 8, "var(--jev)"); item.append(s, document.createTextNode(name)); lg.appendChild(item);
+  });
+  table("table-e", ["Split", "n", "Jev", "Luna", "Kev-4B", "Jev − Kev-4B", "95% CI", "Jev − Luna", "95% CI"],
+    S.map((s) => [s.label, s.n, fmt(s.acc.jev), fmt(s.acc.luna), fmt(s.acc.kev4b),
+      fmt(s.vs_kev4b.d, true), `${fmt(s.vs_kev4b.ci[0], true)} to ${fmt(s.vs_kev4b.ci[1], true)}`,
+      fmt(s.vs_luna.d, true), `${fmt(s.vs_luna.ci[0], true)} to ${fmt(s.vs_luna.ci[1], true)}`]));
+}
+
+function calTable() {
+  const K = DATA.kev, T = Object.fromEntries(DATA.tasks.map((t) => [t.task, t]));
+  const three = (x) => x.toFixed(3);
+  const rows = [
+    ["LEDGAR (100 labels)", three(T.ledgar.jev.ece), three(T.ledgar.kev4b.ece), `${fmt(K.confidence.ledgar.conf)} / ${fmt(K.confidence.ledgar.acc)}`],
+    ["SCOTUS (13 labels)", three(T.scotus.jev.ece), three(T.scotus.kev4b.ece), `${fmt(K.confidence.scotus.conf)} / ${fmt(K.confidence.scotus.acc)}`],
+    ["CaseHOLD (5 options)", three(T.case_hold.jev.ece), three(T.case_hold.kev4b.ece), `${fmt(K.confidence.case_hold.conf)} / ${fmt(K.confidence.case_hold.acc)}`],
+    ["BANKING77 (77 intents)", three(DATA.intents.banking77.ece), three(K.intents.banking77.ece), `${fmt(K.intents.banking77.conf)} / ${fmt(K.intents.banking77.acc)}`],
+    ["CLINC150 (151 intents)", three(DATA.intents.clinc150.ece), three(K.intents.clinc150.ece), `${fmt(K.intents.clinc150.conf)} / ${fmt(K.intents.clinc150.acc)}`],
+  ].concat(K.suites.filter((s) => s.key.endsWith("test")).map((s) => [`Kev suite ${s.label}`, three(s.ece.jev), three(s.ece.kev4b), ""]));
+  table("table-cal", ["Task", "Jev ECE", "Kev-4B ECE", "Kev-4B mean confidence / accuracy, %"], rows);
+  const cap = h("p"); cap.style.fontSize = "13px"; cap.style.color = "var(--muted)";
+  cap.textContent = "Expected calibration error, 10 equal-width bins; lower is better. Kev-4B's confidence sits below its accuracy on every LexGLUE and intent task shown.";
+  document.getElementById("table-cal").appendChild(cap);
+}
+
 function summary() {
   const M = DATA.means;
   const tiles = [
@@ -443,6 +547,7 @@ function summary() {
     ["jev_tuned", "Jev, thresholds from validation", M.jev_tuned, `+$${DATA.costs.jev_validation.toFixed(2)} validation run`],
     ["luna", "GPT-5.6 Luna", M.luna, `$${DATA.costs.luna.toFixed(2)} for 23,607 questions`],
     ["bert", "BERT, fine-tuned", M.bert, `$${DATA.costs.bert_gpu.toFixed(2)} of GPU time to train`],
+    ["kev4b", "Kev-4B, open weights", M.kev4b, `≤ $${DATA.costs.kev_gpu.toFixed(2)} of GPU time to serve`],
   ];
   const box = document.getElementById("tiles");
   tiles.forEach(([k, label, m, sub]) => {
@@ -458,11 +563,14 @@ function summary() {
   });
   const T = Object.fromEntries(DATA.tasks.map((t) => [t.task, t]));
   const I = DATA.intents;
+  const K = DATA.kev;
   const items = [
     ["win", `Zero-shot Jev beats fine-tuned BERT on CaseHOLD (${fmt(T.case_hold.delta_bert.d, true)} points), SCOTUS (${fmt(T.scotus.delta_bert.d, true)}) and ECtHR A (${fmt(T.ecthr_a.delta_bert.d, true)}), with paired intervals clear of zero.`],
     ["loss", `It trails BERT on EUR-LEX (${fmt(T.eurlex.delta_bert.d, true)}), UNFAIR-ToS (${fmt(T.unfair_tos.delta_bert.d, true)}) and LEDGAR (${fmt(T.ledgar.delta_bert.d, true)}): tasks with many labels whose boundaries are dataset conventions.`],
     ["win", `Choosing Jev's multi-label thresholds on the validation split cuts the average gap to BERT from ${fmt(M.bert.micro - M.jev.micro)} to ${fmt(M.bert.micro - M.jev_tuned.micro)} micro-F1 points, and turns ECtHR B from a loss into a tie.`],
     ["note", `Jev and Luna are close: ${fmt(M.jev.micro)} and ${fmt(M.luna.micro)} average micro-F1 untuned. Luna leads on four tasks, Jev on two, and CaseHOLD is a tie.`],
+    ["win", `Jev beats Kev-4B, an open-weight model answering the same API, on all seven LexGLUE tasks (${fmt(M.jev.micro)} vs ${fmt(M.kev4b.micro)} average micro-F1; ${fmt(Math.min(...DATA.tasks.map((t) => t.delta_kev.d)), true)} to ${fmt(Math.max(...DATA.tasks.map((t) => t.delta_kev.d)), true)} points, every paired interval above zero) and on the Kev suite built from datasets Kev never trained on (${fmt(K.suites.find((s) => s.key === "transfer-v4-test").vs_kev4b.d, true)} points).`],
+    ["loss", `Kev-4B wins only where it trained: BANKING77 (${fmt(-K.intents.banking77.d, true)} points) and the held-out items from its own training datasets (${fmt(-K.suites.find((s) => s.key === "decision-v7-test").vs_kev4b.d, true)}).`],
     ["note", `Outside law the pattern repeats: Jev trails fine-tuning on fine-grained intents (BANKING77 ${fmt(I.banking77.acc)} vs ${I.banking77.bert_full}) but finds out-of-scope requests far better (CLINC150 recall ${fmt(I.clinc150.oos_recall)} vs ${I.clinc150.bert_oos_recall}).`],
   ];
   const ul = document.getElementById("findings");
@@ -507,6 +615,8 @@ function setup() {
     ["BERT-base, fine-tuned", "coastalcph/lex-glue scripts, seed 1, A100 on Modal", `7 tasks · $${C.bert_gpu.toFixed(2)} GPU · within 1.1 of published means`],
     ["Validation run", "Jev on 4 multi-label validation splits, for thresholds", `9,275 questions · $${C.jev_validation.toFixed(2)}`],
     ["Intent benchmarks", "BANKING77 and CLINC150 (OOS+), Jev zero-shot", `8,580 questions · $${C.intents.toFixed(2)}`],
+    ["Kev-4B", "jaredpalmer/kev-4b · Kev's own server on a Modal L40S, bf16", `23,607 LexGLUE + 8,580 intent questions · ≤ $${C.kev_gpu.toFixed(2)} GPU, all Kev serving`],
+    ["Kev's suites", "transfer-v4 and decision-v7, dev and test, scored by Kev's own scorer", `3,908 records each for Jev, Luna, Kev-4B · $${C.kev_suites_openrouter.toFixed(2)} API`],
   ];
   const box = document.getElementById("setup");
   cards.forEach(([t, m, s]) => { const c = h("div", undefined, "card"); c.append(h("h3", t), h("div", m, "meta"), h("div", s)); box.appendChild(c); });
@@ -517,5 +627,5 @@ function setup() {
   f.append(p1, h("p", "Intervals are 95% bootstrap intervals over test examples, 1,000 resamples, seed 0. F1 values are shown as percentages."));
 }
 
-summary(); chartA(); chartB(); why(); chartC(); setup();
+summary(); chartA(); chartB(); why(); chartD(); chartE(); calTable(); chartC(); setup();
 </script>
