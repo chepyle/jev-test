@@ -525,3 +525,74 @@ Findings:
 - Single run, one checkpoint, one serving configuration (bf16 on L40S). Kev-4B's served
   accuracy on Kev's own suites matched its published fp32 numbers within 0.004, so the
   serving path is not a likely cause of the LexGLUE gap.
+
+## A fine-tuned encoder on Kev's training data: ModernBERT-large
+
+Question: does a small BERT-like model trained on the same data as Kev-4B match it on Kev's
+suites? Kev-4B is a 4B decoder with a LoRA adapter and pointer head, trained on Kev's
+`decision-v7` train partition. This trains a 396M encoder on exactly that partition.
+
+- Model: `answerdotai/ModernBERT-large` (rev `45bb465`, 8,192-token context), as a
+  cross-encoder: each option of a question becomes one (input, question + option) pair, a
+  scalar head scores each pair, and a softmax over the question's pairs gives its answer.
+  This handles Kev's per-question option sets (2 to 78 options, yes/no, graded levels),
+  which a fixed label head cannot. Code: `encoder/crossenc.py` (framing, checked against
+  Kev's own `api_request` on all 17,452 records: 0 mismatches), `encoder/modal_app.py`.
+- Data: `decision-v7` train, 12,576 records / 15,576 questions (sha256 `7ed5254b…`, as in
+  Kev's manifest), fetched by Kev's `load_split` from `jaredpalmer/kev-suites@a88f56d`.
+- Training: 2 epochs (Kev's count), AdamW lr 2e-5, linear schedule with 6% warmup, batches
+  of at most 128 pairs, bf16, one seed, H100 on Modal, 936 s. Checkpoint selected on
+  `decision-v7` development accuracy (best 0.826 at step 2,400 of 2,484, still rising).
+  Temperature 1.62 fitted on `decision-v7` calibration (NLL 0.463 → 0.429), as Kev fits its
+  own. The run was interrupted at step ~600 and resumed from its step-600 checkpoint
+  (learning-rate schedule continuous across the restart).
+- Control: `MoritzLaurer/ModernBERT-large-zeroshot-v2.0` (rev `a51e07b`), the same backbone
+  trained for NLI, scored zero-shot with the same pairs (entailment minus not-entailment
+  logit), temperature fitted the same way. The NLI model expects a declarative hypothesis;
+  the question-plus-option text is not one (it scores 0.375 on the MNLI items it was built
+  for), so this is a floor for zero-shot NLI, not its best case.
+- Scoring: logits for every record are computed once on Modal; `encoder/replay.py` serves
+  them as a System One endpoint so Kev's own `kev.benchmark` scores them
+  (`kev_suites/run_encoder.sh`). 3,908 / 3,908 records per model, 0 rejected.
+- Cost: $2.15 Modal GPU for the bench, training (including the interrupted segment and
+  three failed resumes before a fix), and both prediction runs.
+
+Accuracy, 95% bootstrap over record groups, 1000 resamples, seed 0 (`analysis/kev-suites.md`):
+
+| Split | n | Jev | Luna | Kev-4B | ModernBERT fine-tuned | ModernBERT NLI zero-shot |
+|---|---:|---|---|---|---|---|
+| transfer-v4 dev | 656 | 0.855 [0.826, 0.883] | 0.881 [0.854, 0.907] | 0.814 [0.779, 0.845] | 0.572 [0.533, 0.607] | 0.537 [0.499, 0.572] |
+| transfer-v4 test | 656 | 0.877 [0.848, 0.901] | 0.898 [0.874, 0.920] | 0.838 [0.807, 0.867] | 0.604 [0.566, 0.642] | 0.575 [0.538, 0.610] |
+| decision-v7 dev | 1264 | 0.845 [0.823, 0.867] | 0.862 [0.840, 0.882] | 0.871 [0.849, 0.893] | 0.801 [0.774, 0.825] | 0.627 [0.598, 0.657] |
+| decision-v7 test | 1200 | 0.835 [0.813, 0.856] | 0.846 [0.821, 0.867] | 0.866 [0.846, 0.888] | 0.798 [0.773, 0.822] | 0.631 [0.602, 0.660] |
+
+| Split | Kev-4B − ModernBERT ft [95% CI] | Jev − ModernBERT ft [95% CI] | ModernBERT ft ECE / Brier |
+|---|---|---|---|
+| transfer-v4 test | +0.235 [+0.195, +0.277] | +0.273 [+0.233, +0.313] | 0.094 / 0.522 |
+| decision-v7 test | +0.068 [+0.045, +0.091] | +0.037 [+0.014, +0.061] | 0.060 / 0.296 |
+
+Findings:
+
+- **Trained on the same data, the encoder trails Kev-4B by 6.8 points on Kev's training
+  sources and by 23.5 on the held-out ones.** Kev-4B loses 2.8 points going from trained to
+  held-out sources (test 0.866 → 0.838); the encoder loses 19.4 (0.798 → 0.604), ending 2.9
+  points above the untrained NLI control on held-out sources.
+- **What does not transfer is rule application and knowledge.** On held-out test sources the
+  encoder is near chance on the new policy and rule families (composed rules 0.53 to 0.59 on
+  two options, n=32 each; deadline levels 0.325 on three, n=40; authorization 0.55, answering
+  "true" 38 of 40 times), on MMLU (0.338, chance 0.25, n=80) and on PAWS (0.562, "true" 76
+  of 80). It holds up where the held-out task resembles training (QNLI 0.825, SciQ 0.850,
+  TweetEval-offensive 0.787, n=80 each). On the policy families it trained on, it scores
+  0.775 to 1.000 (n=40 each): it learned those families, not how to apply a stated rule.
+- **On trained sources the gap is smaller but real.** The encoder trails Kev-4B most on
+  DBpedia (0.863 vs 1.000), BoolQ (0.762 vs 0.875), BANKING77 (0.713 vs 0.850) and MNLI
+  (0.800 vs 0.925), n=80 each, and is ahead on Yelp yes/no (0.925 vs 0.912), Amazon (0.600
+  vs 0.588) and the quantity-limit policy items (0.975 vs 0.900, n=40), all within one or
+  two answers at these sample sizes except the last.
+- **Calibration after the same kind of temperature fit is worse than Kev-4B's** (test ECE
+  0.094 and 0.060 vs 0.017 and 0.019).
+- Limits: one seed, one learning rate, 2 epochs with dev accuracy still rising at the end,
+  and pairs truncated to 512 tokens (Kev's suites admit states of at most 384 Qwen tokens,
+  so truncation should be rare, but it was not counted). A longer or tuned run could narrow
+  the trained-source gap; the held-out gap is 3.5x the trained-source one, which a few
+  points of tuning would not close.

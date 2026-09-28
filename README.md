@@ -246,6 +246,22 @@ OPENROUTER_API_KEY=$KEV_API_KEY uv run python jobs/launch.py kev4b-full data/ful
   --model kev-latest --endpoint "$KEV_URL/v1/systemone" --concurrency 24 --timeout 300
 ```
 
+### Fine-tuned encoder on Kev's training data
+
+`encoder/` fine-tunes ModernBERT-large as a cross-encoder (one scored pair per option) on
+Kev's `decision-v7` train partition, the data Kev-4B trained on, and scores it on Kev's
+suites with Kev's scorer. Training and prediction run on Modal; scoring is local.
+
+```bash
+(cd third_party/kev && uv run python -c "from kev.suite import load_split; load_split('evals/v7/decision-v7', 'train')")
+uvx modal run encoder/modal_app.py::bench --steps 40
+uvx modal run --detach encoder/modal_app.py::train --name mbl-s1   # relaunch the same command to resume
+uvx modal run encoder/modal_app.py::predict --name mbl-s1
+uvx modal volume get jev-kev-encoder runs/mbl-s1/logits.jsonl results/kev-encoder/mbl-s1/
+kev_suites/run_encoder.sh mbl-s1
+uv run python kev_suites/summarize.py > analysis/kev-suites.md
+```
+
 ## Fine-tuned BERT baseline
 
 `bert/` reproduces the LexGLUE BERT-base baseline with the upstream

@@ -19,11 +19,14 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results" / "kev-suites"
 KEV = ROOT / "third_party" / "kev"
-MODELS = ("jev", "luna", "kev4b")
+MODELS = ("jev", "luna", "kev4b", "mbl-s1", "nli-zeroshot")
+DIFFS = [("jev", "luna"), ("jev", "kev4b"), ("kev4b", "mbl-s1"), ("jev", "mbl-s1")]
 LABELS = {
     "jev": "Jev 1.13 (System One)",
     "luna": "GPT-5.6 Luna (chat JSON)",
     "kev4b": "Kev-4B (served, temperature-scaled)",
+    "mbl-s1": "ModernBERT-large cross-encoder, fine-tuned on Kev's train split",
+    "nli-zeroshot": "ModernBERT-large zero-shot NLI (no Kev training)",
 }
 SPLITS = [
     ("transfer-v4", "dev"),
@@ -121,9 +124,9 @@ def main():
                     t: {"n": v["n"], "acc": v["acc"]} for t, v in sorted(report["tasks"].items())
                 },
             }
-        for other in ("luna", "kev4b"):
-            diff = ok["jev"] - ok[other]
-            entry[f"jev_minus_{other}"] = {
+        for a, other in DIFFS:
+            diff = ok[a] - ok[other]
+            entry[f"{a}_minus_{other}"] = {
                 "acc": float(diff.mean()),
                 "ci": bootstrap(groups, lambda idx, diff=diff: diff[idx].mean()),
             }
@@ -138,39 +141,45 @@ def fmt(ci):
 
 def print_tables(summary):
     published = summary["kev-4b"]
-    print(
-        "| Split | n | Jev [95% CI] | Luna [95% CI] | Kev-4B [95% CI] "
-        "| Jev − Luna [95% CI] | Jev − Kev-4B [95% CI] | Kev-4B published |"
-    )
-    print("|---|---:|---|---|---|---|---|---:|")
+    short = {
+        "jev": "Jev",
+        "luna": "Luna",
+        "kev4b": "Kev-4B",
+        "mbl-s1": "ModernBERT-ft",
+        "nli-zeroshot": "ModernBERT-NLI",
+    }
+    print("Accuracy [95% CI]; Kev-4B published in the last column.\n")
+    print("| Split | n | " + " | ".join(short[m] for m in MODELS) + " | Kev-4B published |")
+    print("|---|---:|" + "---|" * len(MODELS) + "---:|")
     for key, e in summary["splits"].items():
-        m = e["models"]
-        cells = " | ".join(f"{m[x]['acc']:.3f} {fmt(m[x]['acc_ci'])}" for x in MODELS)
-        diffs = " | ".join(
-            f"{e[f'jev_minus_{x}']['acc']:+.3f} {fmt(e[f'jev_minus_{x}']['ci'])}"
-            for x in ("luna", "kev4b")
+        cells = " | ".join(
+            f"{e['models'][m]['acc']:.3f} {fmt(e['models'][m]['acc_ci'])}" for m in MODELS
         )
-        print(f"| {key} | {e['n_questions']} | {cells} | {diffs} | {published[key]['acc']:.3f} |")
-    print()
-    print(
-        "| Split | Jev ECE / Brier / wrong at ≥0.9 | Kev-4B ECE / Brier / wrong at ≥0.9 "
-        "| Kev-4B published ECE raw / scaled |"
-    )
-    print("|---|---|---|---|")
+        print(f"| {key} | {e['n_questions']} | {cells} | {published[key]['acc']:.3f} |")
+    print("\nPaired differences [95% CI]:\n")
+    print("| Split | " + " | ".join(f"{short[a]} − {short[b]}" for a, b in DIFFS) + " |")
+    print("|---|" + "---|" * len(DIFFS))
     for key, e in summary["splits"].items():
-        j, k, p = e["models"]["jev"], e["models"]["kev4b"], published[key]
-        raw = f"{p['ece_raw']:.3f}" if "ece_raw" in p else "–"
-        print(
-            f"| {key} | {j['ece']:.3f} / {j['brier']:.3f} / {j['confident_error_rate']:.3f} "
-            f"| {k['ece']:.3f} / {k['brier']:.3f} / {k['confident_error_rate']:.3f} "
-            f"| {raw} / {p['ece_calibrated']:.3f} |"
+        cells = " | ".join(
+            f"{e[f'{a}_minus_{b}']['acc']:+.3f} {fmt(e[f'{a}_minus_{b}']['ci'])}" for a, b in DIFFS
         )
+        print(f"| {key} | {cells} |")
+    print("\nCalibration: ECE / Brier / wrong at >= 0.9 (Luna is one-hot, omitted).\n")
+    cal = [m for m in MODELS if m != "luna"]
+    print("| Split | " + " | ".join(short[m] for m in cal) + " |")
+    print("|---|" + "---|" * len(cal))
+    for key, e in summary["splits"].items():
+        stats = [e["models"][m] for m in cal]
+        cells = " | ".join(
+            f"{x['ece']:.3f} / {x['brier']:.3f} / {x['confident_error_rate']:.3f}" for x in stats
+        )
+        print(f"| {key} | {cells} |")
     print()
     for key in ("transfer-v4-test", "decision-v7-test"):
         e = summary["splits"][key]
         print(f"{key} accuracy by source:\n")
-        print("| Source | n | Jev | Luna | Kev-4B |")
-        print("|---|---:|---:|---:|---:|")
+        print("| Source | n | " + " | ".join(short[m] for m in MODELS) + " |")
+        print("|---|---:|" + "---:|" * len(MODELS))
         for src, v in e["models"]["jev"]["by_source"].items():
             accs = " | ".join(f"{e['models'][x]['by_source'][src]['acc']:.3f}" for x in MODELS)
             print(f"| {src} | {v['n']} | {accs} |")

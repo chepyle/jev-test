@@ -202,6 +202,138 @@
               "acc": 0.75
             }
           }
+        },
+        "mbl-s1": {
+          "served_model": "mbl-s1",
+          "coverage": {
+            "requested_records": 764,
+            "requested_questions": 764,
+            "evaluated_records": 764,
+            "evaluated_questions": 764,
+            "rejected_records": 0,
+            "truncated_records": 0
+          },
+          "acc": 0.5716463414634146,
+          "acc_ci": [
+            0.5329076847487435,
+            0.6072508744174522
+          ],
+          "ece": 0.12035241756580915,
+          "brier": 0.5554047683667862,
+          "nll": 0.9873732731912754,
+          "confident_error_rate": 0.039634146341463415,
+          "by_source": {
+            "composition_held_and_or": {
+              "n": 32,
+              "acc": 0.5
+            },
+            "composition_held_conditional": {
+              "n": 32,
+              "acc": 0.5
+            },
+            "composition_held_or_not": {
+              "n": 32,
+              "acc": 0.6875
+            },
+            "contrastive_authorization": {
+              "n": 40,
+              "acc": 0.525
+            },
+            "contrastive_deadline": {
+              "n": 40,
+              "acc": 0.4
+            },
+            "emotion": {
+              "n": 80,
+              "acc": 0.4125
+            },
+            "mmlu": {
+              "n": 80,
+              "acc": 0.25
+            },
+            "paws": {
+              "n": 80,
+              "acc": 0.5125
+            },
+            "qnli": {
+              "n": 80,
+              "acc": 0.8625
+            },
+            "sciq": {
+              "n": 80,
+              "acc": 0.8375
+            },
+            "tweet_offensive": {
+              "n": 80,
+              "acc": 0.675
+            }
+          }
+        },
+        "nli-zeroshot": {
+          "served_model": "nli-zeroshot",
+          "coverage": {
+            "requested_records": 764,
+            "requested_questions": 764,
+            "evaluated_records": 764,
+            "evaluated_questions": 764,
+            "rejected_records": 0,
+            "truncated_records": 0
+          },
+          "acc": 0.5365853658536586,
+          "acc_ci": [
+            0.49924765689261674,
+            0.572351925122823
+          ],
+          "ece": 0.12082136507600445,
+          "brier": 0.5477056718748807,
+          "nll": 0.8922231548872974,
+          "confident_error_rate": 0.006097560975609756,
+          "by_source": {
+            "composition_held_and_or": {
+              "n": 32,
+              "acc": 0.375
+            },
+            "composition_held_conditional": {
+              "n": 32,
+              "acc": 0.4375
+            },
+            "composition_held_or_not": {
+              "n": 32,
+              "acc": 0.5625
+            },
+            "contrastive_authorization": {
+              "n": 40,
+              "acc": 0.525
+            },
+            "contrastive_deadline": {
+              "n": 40,
+              "acc": 0.275
+            },
+            "emotion": {
+              "n": 80,
+              "acc": 0.5
+            },
+            "mmlu": {
+              "n": 80,
+              "acc": 0.3625
+            },
+            "paws": {
+              "n": 80,
+              "acc": 0.45
+            },
+            "qnli": {
+              "n": 80,
+              "acc": 0.6125
+            },
+            "sciq": {
+              "n": 80,
+              "acc": 0.75
+            },
+            "tweet_offensive": {
+              "n": 80,
+              "acc": 0.775
+            }
+          }
         }
       },
       "jev_minus_luna": {
@@ -216,6 +348,20 @@
         "ci": [
           0.011541321909206695,
           0.07228962001853567
+        ]
+      },
+      "kev4b_minus_mbl-s1": {
+        "acc": 0.2423780487804878,
+        "ci": [
+          0.1999922600619195,
+          0.28503239918345713
+        ]
+      },
+      "jev_minus_mbl-s1": {
+        "acc": 0.28353658536585363,
+        "ci": [
+          0.24132598411139874,
+          0.32891254372813594
         ]
       }
     },
@@ -420,6 +566,138 @@
               "acc": 0.85
             }
           }
+        },
+        "mbl-s1": {
+          "served_model": "mbl-s1",
+          "coverage": {
+            "requested_records": 764,
+            "requested_questions": 764,
+            "evaluated_records": 764,
+            "evaluated_questions": 764,
+            "rejected_records": 0,
+            "truncated_records": 0
+          },
+          "acc": 0.6036585365853658,
+          "acc_ci": [
+            0.5662572067410748,
+            0.6418615017796053
+          ],
+          "ece": 0.09371344080891283,
+          "brier": 0.52217813110147,
+          "nll": 0.9358021700310777,
+          "confident_error_rate": 0.04725609756097561,
+          "by_source": {
+            "composition_final_combination": {
+              "n": 32,
+              "acc": 0.53125
+            },
+            "composition_final_exception": {
+              "n": 32,
+              "acc": 0.59375
+            },
+            "composition_final_negation": {
+              "n": 32,
+              "acc": 0.5625
+            },
+            "contrastive_authorization": {
+              "n": 40,
+              "acc": 0.55
+            },
+            "contrastive_deadline": {
+              "n": 40,
+              "acc": 0.325
+            },
+            "emotion": {
+              "n": 80,
+              "acc": 0.475
+            },
+            "mmlu": {
+              "n": 80,
+              "acc": 0.3375
+            },
+            "paws": {
+              "n": 80,
+              "acc": 0.5625
+            },
+            "qnli": {
+              "n": 80,
+              "acc": 0.825
+            },
+            "sciq": {
+              "n": 80,
+              "acc": 0.85
+            },
+            "tweet_offensive": {
+              "n": 80,
+              "acc": 0.7875
+            }
+          }
+        },
+        "nli-zeroshot": {
+          "served_model": "nli-zeroshot",
+          "coverage": {
+            "requested_records": 764,
+            "requested_questions": 764,
+            "evaluated_records": 764,
+            "evaluated_questions": 764,
+            "rejected_records": 0,
+            "truncated_records": 0
+          },
+          "acc": 0.5746951219512195,
+          "acc_ci": [
+            0.5383353730104202,
+            0.6100383513751608
+          ],
+          "ece": 0.08453716802986201,
+          "brier": 0.49815134760860347,
+          "nll": 0.8301364766847152,
+          "confident_error_rate": 0.004573170731707317,
+          "by_source": {
+            "composition_final_combination": {
+              "n": 32,
+              "acc": 0.3125
+            },
+            "composition_final_exception": {
+              "n": 32,
+              "acc": 0.625
+            },
+            "composition_final_negation": {
+              "n": 32,
+              "acc": 0.5625
+            },
+            "contrastive_authorization": {
+              "n": 40,
+              "acc": 0.55
+            },
+            "contrastive_deadline": {
+              "n": 40,
+              "acc": 0.25
+            },
+            "emotion": {
+              "n": 80,
+              "acc": 0.65
+            },
+            "mmlu": {
+              "n": 80,
+              "acc": 0.2875
+            },
+            "paws": {
+              "n": 80,
+              "acc": 0.5125
+            },
+            "qnli": {
+              "n": 80,
+              "acc": 0.5875
+            },
+            "sciq": {
+              "n": 80,
+              "acc": 0.825
+            },
+            "tweet_offensive": {
+              "n": 80,
+              "acc": 0.85
+            }
+          }
         }
       },
       "jev_minus_luna": {
@@ -434,6 +712,20 @@
         "ci": [
           0.011776498931614837,
           0.06676788895277053
+        ]
+      },
+      "kev4b_minus_mbl-s1": {
+        "acc": 0.2347560975609756,
+        "ci": [
+          0.19477886605627764,
+          0.27699813337858475
+        ]
+      },
+      "jev_minus_mbl-s1": {
+        "acc": 0.2728658536585366,
+        "ci": [
+          0.2331182235598256,
+          0.312874251497006
         ]
       }
     },
@@ -794,6 +1086,242 @@
               "acc": 0.875
             }
           }
+        },
+        "mbl-s1": {
+          "served_model": "mbl-s1",
+          "coverage": {
+            "requested_records": 1204,
+            "requested_questions": 1468,
+            "evaluated_records": 1204,
+            "evaluated_questions": 1468,
+            "rejected_records": 0,
+            "truncated_records": 0
+          },
+          "acc": 0.8006329113924051,
+          "acc_ci": [
+            0.7739875260220119,
+            0.8247677775656885
+          ],
+          "ece": 0.06103608842418042,
+          "brier": 0.3076751197439518,
+          "nll": 0.7237637751947196,
+          "confident_error_rate": 0.04430379746835443,
+          "by_source": {
+            "agnews": {
+              "n": 80,
+              "acc": 0.725
+            },
+            "agnews_yn": {
+              "n": 160,
+              "acc": 0.93125
+            },
+            "amazon": {
+              "n": 80,
+              "acc": 0.625
+            },
+            "banking77": {
+              "n": 80,
+              "acc": 0.725
+            },
+            "boolq": {
+              "n": 80,
+              "acc": 0.8375
+            },
+            "composition_atom": {
+              "n": 16,
+              "acc": 1.0
+            },
+            "composition_conditional": {
+              "n": 16,
+              "acc": 0.6875
+            },
+            "composition_conjunction": {
+              "n": 16,
+              "acc": 0.75
+            },
+            "composition_disjunction": {
+              "n": 16,
+              "acc": 0.625
+            },
+            "composition_exception": {
+              "n": 16,
+              "acc": 0.75
+            },
+            "composition_negation": {
+              "n": 16,
+              "acc": 0.75
+            },
+            "composition_nested_and": {
+              "n": 16,
+              "acc": 0.75
+            },
+            "composition_nested_or": {
+              "n": 16,
+              "acc": 0.5
+            },
+            "contrastive_age_eligibility": {
+              "n": 24,
+              "acc": 1.0
+            },
+            "contrastive_quantity_limit": {
+              "n": 24,
+              "acc": 0.9166666666666666
+            },
+            "contrastive_return_window": {
+              "n": 24,
+              "acc": 0.7916666666666666
+            },
+            "contrastive_spend_threshold": {
+              "n": 24,
+              "acc": 1.0
+            },
+            "dbpedia14": {
+              "n": 80,
+              "acc": 0.8375
+            },
+            "imdb": {
+              "n": 80,
+              "acc": 0.9125
+            },
+            "mnli": {
+              "n": 80,
+              "acc": 0.8375
+            },
+            "sst5": {
+              "n": 80,
+              "acc": 0.5125
+            },
+            "trec": {
+              "n": 80,
+              "acc": 0.825
+            },
+            "yelp": {
+              "n": 80,
+              "acc": 0.75
+            },
+            "yelp_yn": {
+              "n": 80,
+              "acc": 0.925
+            }
+          }
+        },
+        "nli-zeroshot": {
+          "served_model": "nli-zeroshot",
+          "coverage": {
+            "requested_records": 1204,
+            "requested_questions": 1468,
+            "evaluated_records": 1204,
+            "evaluated_questions": 1468,
+            "rejected_records": 0,
+            "truncated_records": 0
+          },
+          "acc": 0.627373417721519,
+          "acc_ci": [
+            0.5978555049495563,
+            0.6568062159934048
+          ],
+          "ece": 0.10152955237706718,
+          "brier": 0.5143731692389273,
+          "nll": 1.0301006614308867,
+          "confident_error_rate": 0.029272151898734177,
+          "by_source": {
+            "agnews": {
+              "n": 80,
+              "acc": 0.6125
+            },
+            "agnews_yn": {
+              "n": 160,
+              "acc": 0.88125
+            },
+            "amazon": {
+              "n": 80,
+              "acc": 0.325
+            },
+            "banking77": {
+              "n": 80,
+              "acc": 0.525
+            },
+            "boolq": {
+              "n": 80,
+              "acc": 0.7625
+            },
+            "composition_atom": {
+              "n": 16,
+              "acc": 0.375
+            },
+            "composition_conditional": {
+              "n": 16,
+              "acc": 0.625
+            },
+            "composition_conjunction": {
+              "n": 16,
+              "acc": 0.375
+            },
+            "composition_disjunction": {
+              "n": 16,
+              "acc": 0.75
+            },
+            "composition_exception": {
+              "n": 16,
+              "acc": 0.375
+            },
+            "composition_negation": {
+              "n": 16,
+              "acc": 0.6875
+            },
+            "composition_nested_and": {
+              "n": 16,
+              "acc": 0.375
+            },
+            "composition_nested_or": {
+              "n": 16,
+              "acc": 0.5625
+            },
+            "contrastive_age_eligibility": {
+              "n": 24,
+              "acc": 0.875
+            },
+            "contrastive_quantity_limit": {
+              "n": 24,
+              "acc": 0.25
+            },
+            "contrastive_return_window": {
+              "n": 24,
+              "acc": 0.5
+            },
+            "contrastive_spend_threshold": {
+              "n": 24,
+              "acc": 0.5416666666666666
+            },
+            "dbpedia14": {
+              "n": 80,
+              "acc": 0.7625
+            },
+            "imdb": {
+              "n": 80,
+              "acc": 0.925
+            },
+            "mnli": {
+              "n": 80,
+              "acc": 0.4
+            },
+            "sst5": {
+              "n": 80,
+              "acc": 0.5
+            },
+            "trec": {
+              "n": 80,
+              "acc": 0.4375
+            },
+            "yelp": {
+              "n": 80,
+              "acc": 0.55
+            },
+            "yelp_yn": {
+              "n": 80,
+              "acc": 0.875
+            }
+          }
         }
       },
       "jev_minus_luna": {
@@ -808,6 +1336,20 @@
         "ci": [
           -0.04630529532507219,
           -0.007062580276865993
+        ]
+      },
+      "kev4b_minus_mbl-s1": {
+        "acc": 0.07041139240506329,
+        "ci": [
+          0.04627594754037026,
+          0.09412134374566794
+        ]
+      },
+      "jev_minus_mbl-s1": {
+        "acc": 0.04430379746835443,
+        "ci": [
+          0.017418155530310855,
+          0.07093417005762728
         ]
       }
     },
@@ -1072,6 +1614,178 @@
               "acc": 0.9125
             }
           }
+        },
+        "mbl-s1": {
+          "served_model": "mbl-s1",
+          "coverage": {
+            "requested_records": 1176,
+            "requested_questions": 1440,
+            "evaluated_records": 1176,
+            "evaluated_questions": 1440,
+            "rejected_records": 0,
+            "truncated_records": 0
+          },
+          "acc": 0.7983333333333333,
+          "acc_ci": [
+            0.7734227464938571,
+            0.822331826663235
+          ],
+          "ece": 0.05986461047306302,
+          "brier": 0.2960059470243354,
+          "nll": 0.7174552536861181,
+          "confident_error_rate": 0.05,
+          "by_source": {
+            "agnews": {
+              "n": 80,
+              "acc": 0.75
+            },
+            "agnews_yn": {
+              "n": 160,
+              "acc": 0.925
+            },
+            "amazon": {
+              "n": 80,
+              "acc": 0.6
+            },
+            "banking77": {
+              "n": 80,
+              "acc": 0.7125
+            },
+            "boolq": {
+              "n": 80,
+              "acc": 0.7625
+            },
+            "contrastive_age_eligibility": {
+              "n": 40,
+              "acc": 1.0
+            },
+            "contrastive_quantity_limit": {
+              "n": 40,
+              "acc": 0.975
+            },
+            "contrastive_return_window": {
+              "n": 40,
+              "acc": 0.775
+            },
+            "contrastive_spend_threshold": {
+              "n": 40,
+              "acc": 0.775
+            },
+            "dbpedia14": {
+              "n": 80,
+              "acc": 0.8625
+            },
+            "imdb": {
+              "n": 80,
+              "acc": 0.9375
+            },
+            "mnli": {
+              "n": 80,
+              "acc": 0.8
+            },
+            "sst5": {
+              "n": 80,
+              "acc": 0.5625
+            },
+            "trec": {
+              "n": 80,
+              "acc": 0.875
+            },
+            "yelp": {
+              "n": 80,
+              "acc": 0.575
+            },
+            "yelp_yn": {
+              "n": 80,
+              "acc": 0.925
+            }
+          }
+        },
+        "nli-zeroshot": {
+          "served_model": "nli-zeroshot",
+          "coverage": {
+            "requested_records": 1176,
+            "requested_questions": 1440,
+            "evaluated_records": 1176,
+            "evaluated_questions": 1440,
+            "rejected_records": 0,
+            "truncated_records": 0
+          },
+          "acc": 0.6308333333333334,
+          "acc_ci": [
+            0.6023353695424432,
+            0.6604318537912836
+          ],
+          "ece": 0.08441299759245968,
+          "brier": 0.49580272068366277,
+          "nll": 1.0101085169743218,
+          "confident_error_rate": 0.023333333333333334,
+          "by_source": {
+            "agnews": {
+              "n": 80,
+              "acc": 0.7
+            },
+            "agnews_yn": {
+              "n": 160,
+              "acc": 0.90625
+            },
+            "amazon": {
+              "n": 80,
+              "acc": 0.375
+            },
+            "banking77": {
+              "n": 80,
+              "acc": 0.4875
+            },
+            "boolq": {
+              "n": 80,
+              "acc": 0.7625
+            },
+            "contrastive_age_eligibility": {
+              "n": 40,
+              "acc": 0.9
+            },
+            "contrastive_quantity_limit": {
+              "n": 40,
+              "acc": 0.3
+            },
+            "contrastive_return_window": {
+              "n": 40,
+              "acc": 0.5
+            },
+            "contrastive_spend_threshold": {
+              "n": 40,
+              "acc": 0.5
+            },
+            "dbpedia14": {
+              "n": 80,
+              "acc": 0.725
+            },
+            "imdb": {
+              "n": 80,
+              "acc": 0.925
+            },
+            "mnli": {
+              "n": 80,
+              "acc": 0.375
+            },
+            "sst5": {
+              "n": 80,
+              "acc": 0.4375
+            },
+            "trec": {
+              "n": 80,
+              "acc": 0.4
+            },
+            "yelp": {
+              "n": 80,
+              "acc": 0.5
+            },
+            "yelp_yn": {
+              "n": 80,
+              "acc": 0.8625
+            }
+          }
         }
       },
       "jev_minus_luna": {
@@ -1086,6 +1800,20 @@
         "ci": [
           -0.04893977877354919,
           -0.011469423466568434
+        ]
+      },
+      "kev4b_minus_mbl-s1": {
+        "acc": 0.0675,
+        "ci": [
+          0.04492203048455448,
+          0.09091097074968042
+        ]
+      },
+      "jev_minus_mbl-s1": {
+        "acc": 0.03666666666666667,
+        "ci": [
+          0.014003168776061148,
+          0.06053640027709553
         ]
       }
     }
