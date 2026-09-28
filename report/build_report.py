@@ -28,7 +28,7 @@ PUBLISHED = {  # read from the papers' tables, see RESULTS.md
     "banking77": {"bert_full": 93.66, "bert_10shot": 83.42, "bert_30shot": 90.03},
     "clinc150": {"bert_in_scope": 96.7, "bert_oos_recall": 59.2, "best_oos_recall": 66.0},
 }
-COMMIT = "600c402"
+COMMIT = "151e864"
 
 
 def load(path: str) -> dict:
@@ -173,8 +173,19 @@ def build() -> dict:
                 "label": f"{suite} {split}",
                 "held_out": suite == "transfer-v4",
                 "n": e["n_questions"],
-                "acc": {m: round(e["models"][m]["acc"] * 100, 1) for m in ("jev", "luna", "kev4b")},
-                "ece": {m: round(e["models"][m]["ece"], 3) for m in ("jev", "kev4b")},
+                "acc": {
+                    m: round(e["models"][m]["acc"] * 100, 1)
+                    for m in ("jev", "luna", "kev4b", "mbl-s1", "nli-zeroshot")
+                },
+                "acc_ci": {
+                    m: [round(x * 100, 1) for x in e["models"][m]["acc_ci"]]
+                    for m in ("kev4b", "mbl-s1", "nli-zeroshot")
+                },
+                "ece": {m: round(e["models"][m]["ece"], 3) for m in ("jev", "kev4b", "mbl-s1")},
+                "kev_minus_encoder": {
+                    "d": round(e["kev4b_minus_mbl-s1"]["acc"] * 100, 1),
+                    "ci": [round(x * 100, 1) for x in e["kev4b_minus_mbl-s1"]["ci"]],
+                },
                 **{
                     f"vs_{m}": {
                         "d": round(e[f"jev_minus_{m}"]["acc"] * 100, 1),
@@ -224,6 +235,13 @@ def build() -> dict:
             "bert_gpu": 21.58,
             "kev_gpu": 8.01,  # Modal billing report for app jev-test-kev, see RESULTS.md
             "kev_suites_openrouter": 0.42,
+            "encoder_gpu": 2.15,  # Modal billing report for app jev-kev-encoder, see RESULTS.md
+        },
+        "encoder": {
+            "config": load("results/kev-encoder/mbl-s1/config.json"),
+            "temperature": round(
+                load("results/kev-encoder/mbl-s1/temperature.json")["temperature"], 2
+            ),
         },
         "kev": kev_block,
         "confusions": {

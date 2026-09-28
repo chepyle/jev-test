@@ -233,6 +233,15 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
     <div class="card">
       <div class="table-wrap" id="table-cal"></div>
     </div>
+    <h3>Same training data, a smaller model</h3>
+    <p>To see how much of Kev-4B's result comes from its training data, we fine-tuned ModernBERT-large (396M parameters, ten times smaller) on exactly the records Kev-4B trained on, with Kev's recipe: two epochs, checkpoint chosen on Kev's development split, temperature fitted on its calibration split. Each option becomes one scored (input, question + option) pair. The same backbone trained only for NLI, with no Kev data, is the floor.</p>
+    <div class="card">
+      <div class="card-head">
+        <h3>Accuracy on Kev's suites, percent, with 95% intervals</h3>
+        <p id="enc-sub"></p>
+      </div>
+      <div class="table-wrap" id="table-enc"></div>
+    </div>
   </section>
 
   <section aria-labelledby="intents-h">
@@ -263,6 +272,7 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
       <li><b>One BERT seed.</b> The reproduction lands within 1.1 micro-F1 of the published five-seed means, so differences under about one point should not be read as real.</li>
       <li><b>Published baselines for the intent benchmarks.</b> Those comparisons are not paired, and the BANKING77 baseline is BERT-large.</li>
       <li><b>Kev-4B is not zero-shot everywhere.</b> BANKING77 and the decision-v7 suite come from its training datasets. It also trained on inputs of at most 384 tokens, far shorter than most LexGLUE documents; the gap on short-input tasks (CaseHOLD, LEDGAR) shows length is not the whole story, but this study does not separate the two.</li>
+      <li><b>One ModernBERT run.</b> One seed, one learning rate, and development accuracy still rising after two epochs; tuning could narrow its gap on Kev's training sources, which is under a third of its gap on held-out ones. The NLI control's question-plus-option wording is not the declarative hypothesis that model expects, so its score is a floor.</li>
       <li><b>One Kev-4B serving configuration.</b> bf16 on one GPU type, one checkpoint, one run.</li>
       <li><b>Possible training-data overlap.</b> Every dataset used here was public before these models were trained.</li>
     </ul>
@@ -571,6 +581,10 @@ function summary() {
     ["note", `Jev and Luna are close: ${fmt(M.jev.micro)} and ${fmt(M.luna.micro)} average micro-F1 untuned. Luna leads on four tasks, Jev on two, and CaseHOLD is a tie.`],
     ["win", `Jev beats Kev-4B, an open-weight model answering the same API, on all seven LexGLUE tasks (${fmt(M.jev.micro)} vs ${fmt(M.kev4b.micro)} average micro-F1; ${fmt(Math.min(...DATA.tasks.map((t) => t.delta_kev.d)), true)} to ${fmt(Math.max(...DATA.tasks.map((t) => t.delta_kev.d)), true)} points, every paired interval above zero) and on the Kev suite built from datasets Kev never trained on (${fmt(K.suites.find((s) => s.key === "transfer-v4-test").vs_kev4b.d, true)} points).`],
     ["loss", `Kev-4B wins only where it trained: BANKING77 (${fmt(-K.intents.banking77.d, true)} points) and the held-out items from its own training datasets (${fmt(-K.suites.find((s) => s.key === "decision-v7-test").vs_kev4b.d, true)}).`],
+    ["note", (() => {
+      const t = K.suites.find((s) => s.key === "transfer-v4-test"), d = K.suites.find((s) => s.key === "decision-v7-test");
+      return `Kev-4B's training data alone does not explain it: ModernBERT-large fine-tuned on the same records trails Kev-4B by ${fmt(d.kev_minus_encoder.d)} points on Kev's training sources but ${fmt(t.kev_minus_encoder.d)} on held-out ones (${fmt(t.acc["mbl-s1"])}% vs ${fmt(t.acc.kev4b)}%), barely above an untrained control (${fmt(t.acc["nli-zeroshot"])}%).`;
+    })()],
     ["note", `Outside law the pattern repeats: Jev trails fine-tuning on fine-grained intents (BANKING77 ${fmt(I.banking77.acc)} vs ${I.banking77.bert_full}) but finds out-of-scope requests far better (CLINC150 recall ${fmt(I.clinc150.oos_recall)} vs ${I.clinc150.bert_oos_recall}).`],
   ];
   const ul = document.getElementById("findings");
@@ -617,6 +631,7 @@ function setup() {
     ["Intent benchmarks", "BANKING77 and CLINC150 (OOS+), Jev zero-shot", `8,580 questions · $${C.intents.toFixed(2)}`],
     ["Kev-4B", "jaredpalmer/kev-4b · Kev's own server on a Modal L40S, bf16", `23,607 LexGLUE + 8,580 intent questions · ≤ $${C.kev_gpu.toFixed(2)} GPU, all Kev serving`],
     ["Kev's suites", "transfer-v4 and decision-v7, dev and test, scored by Kev's own scorer", `3,908 records each for Jev, Luna, Kev-4B · $${C.kev_suites_openrouter.toFixed(2)} API`],
+    ["ModernBERT-large, fine-tuned", "Cross-encoder on Kev's decision-v7 train split, H100 on Modal", `12,576 training records · $${C.encoder_gpu.toFixed(2)} GPU incl. zero-shot NLI control`],
   ];
   const box = document.getElementById("setup");
   cards.forEach(([t, m, s]) => { const c = h("div", undefined, "card"); c.append(h("h3", t), h("div", m, "meta"), h("div", s)); box.appendChild(c); });
@@ -627,5 +642,15 @@ function setup() {
   f.append(p1, h("p", "Intervals are 95% bootstrap intervals over test examples, 1,000 resamples, seed 0. F1 values are shown as percentages."));
 }
 
-summary(); chartA(); chartB(); why(); chartD(); chartE(); calTable(); chartC(); setup();
+function encTable() {
+  const S = DATA.kev.suites, E = DATA.encoder;
+  const cell = (s, m) => `${fmt(s.acc[m])} (${fmt(s.acc_ci[m][0])}–${fmt(s.acc_ci[m][1])})`;
+  table("table-enc", ["Split", "Kev-4B", "ModernBERT", "NLI control", "Kev-4B − ModernBERT"],
+    S.map((s) => [s.label + (s.held_out ? ", held out" : ", trained"), cell(s, "kev4b"), cell(s, "mbl-s1"), cell(s, "nli-zeroshot"),
+      `${fmt(s.kev_minus_encoder.d, true)} (${fmt(s.kev_minus_encoder.ci[0], true)} to ${fmt(s.kev_minus_encoder.ci[1], true)})`]));
+  document.getElementById("enc-sub").textContent =
+    `ModernBERT-large, lr ${E.config.lr.toExponential(0)}, ${E.config.epochs} epochs, seed ${E.config.seed}, temperature ${E.temperature}. Differences are paired on the same questions.`;
+}
+
+summary(); chartA(); chartB(); why(); chartD(); chartE(); calTable(); encTable(); chartC(); setup();
 </script>
