@@ -153,7 +153,7 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
   <header>
     <div class="eyebrow">Zero-shot evaluation · LexGLUE + intent detection</div>
     <h1>Jev on legal and intent classification</h1>
-    <p class="lede">TypeSafe's Jev answered every test question in LexGLUE's seven legal tasks without seeing a single training example. We compared it with GPT-5.6 Luna under the same instructions, with BERT fine-tuned on each task, and with Kev-4B, an open-weight model that serves the same API, then checked the pattern on two intent-detection benchmarks and on Kev's own test suites.</p>
+    <p class="lede">TypeSafe's Jev answered every test question in LexGLUE's seven legal tasks without seeing a single training example. We compared it with GPT-5.6 Luna under the same instructions, with BERT fine-tuned on each task, with Kev-4B, an open-weight model that serves the same API, and with LLM2Jev, which serves an untrained Qwen3.5-4B through that API, then checked the pattern on two intent-detection benchmarks and on Kev's own test suites.</p>
   </header>
 
   <section aria-labelledby="summary-h">
@@ -242,6 +242,15 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
       </div>
       <div class="table-wrap" id="table-enc"></div>
     </div>
+    <h3>Same base family, prompted instead of trained: LLM2Jev</h3>
+    <p id="l2j-lede"></p>
+    <div class="card">
+      <div class="card-head">
+        <h3>LLM2Jev against Kev-4B and Jev on every suite, paired</h3>
+        <p>LexGLUE in micro-F1, intent benchmarks and Kev's suites in accuracy, all in points. A positive difference means the other model scores higher than LLM2Jev.</p>
+      </div>
+      <div class="table-wrap" id="table-l2j"></div>
+    </div>
   </section>
 
   <section aria-labelledby="intents-h">
@@ -274,6 +283,7 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
       <li><b>Kev-4B is not zero-shot everywhere.</b> BANKING77 and the decision-v7 suite come from its training datasets. It also trained on inputs of at most 384 tokens, far shorter than most LexGLUE documents; the gap on short-input tasks (CaseHOLD, LEDGAR) shows length is not the whole story, but this study does not separate the two.</li>
       <li><b>One ModernBERT run.</b> One seed, one learning rate, and development accuracy still rising after two epochs; tuning could narrow its gap on Kev's training sources, which is under a third of its gap on held-out ones. The NLI control's question-plus-option wording is not the declarative hypothesis that model expects, so its score is a floor.</li>
       <li><b>One Kev-4B serving configuration.</b> bf16 on one GPU type, one checkpoint, one run.</li>
+      <li><b>One LLM2Jev configuration.</b> The base model and prompt LLM2Jev published, no calibration fit, one run. Our multi-label questions carry true and false descriptions, so its single-candidate yes/no path was not tested. SGLang's startup warmup had to be disabled to keep its scheduler alive; the answers matched a no-cache reference on 398 of 399 decisions.</li>
       <li><b>Possible training-data overlap.</b> Every dataset used here was public before these models were trained.</li>
     </ul>
   </section>
@@ -291,6 +301,7 @@ const MODELS = {
   luna: { name: "GPT-5.6 Luna", color: "var(--luna)", shape: "square" },
   bert: { name: "BERT, fine-tuned", color: "var(--bert)", shape: "triangle" },
   kev4b: { name: "Kev-4B", color: "var(--muted)", shape: "diamond" },
+  llm2jev: { name: "LLM2Jev", color: "var(--muted)", shape: "diamond-ring" },
 };
 
 function el(tag, attrs = {}, parent) {
@@ -312,6 +323,7 @@ function shape(g, kind, x, y, color, size = 5) {
   if (kind === "circle") s = el("circle", { cx: x, cy: y, r: size, fill: color, stroke: "var(--surface)", "stroke-width": 2 }, g);
   else if (kind === "ring") s = el("circle", { cx: x, cy: y, r: size, fill: "var(--surface)", stroke: color, "stroke-width": 2 }, g);
   else if (kind === "square") s = el("rect", { x: x - size, y: y - size, width: size * 2, height: size * 2, rx: 1.5, fill: color, stroke: "var(--surface)", "stroke-width": 2 }, g);
+  else if (kind === "diamond-ring") s = el("path", { d: `M${x},${y - size - 1.5} L${x + size + 1.5},${y} L${x},${y + size + 1.5} L${x - size - 1.5},${y} Z`, fill: "var(--surface)", stroke: color, "stroke-width": 2, "stroke-linejoin": "round" }, g);
   else if (kind === "diamond") s = el("path", { d: `M${x},${y - size - 1.5} L${x + size + 1.5},${y} L${x},${y + size + 1.5} L${x - size - 1.5},${y} Z`, fill: color, stroke: "var(--surface)", "stroke-width": 2, "stroke-linejoin": "round" }, g);
   else s = el("path", { d: `M${x},${y - size - 1} L${x + size + 1},${y + size} L${x - size - 1},${y + size} Z`, fill: color, stroke: "var(--surface)", "stroke-width": 2, "stroke-linejoin": "round" }, g);
   s.classList.add("shape");
@@ -537,16 +549,18 @@ function chartE() {
 function calTable() {
   const K = DATA.kev, T = Object.fromEntries(DATA.tasks.map((t) => [t.task, t]));
   const three = (x) => x.toFixed(3);
+  const L = DATA.llm2jev.intents;
+  const ca = (x) => `${fmt(x.conf)} / ${fmt(x.acc)}`;
   const rows = [
-    ["LEDGAR (100 labels)", three(T.ledgar.jev.ece), three(T.ledgar.kev4b.ece), `${fmt(K.confidence.ledgar.conf)} / ${fmt(K.confidence.ledgar.acc)}`],
-    ["SCOTUS (13 labels)", three(T.scotus.jev.ece), three(T.scotus.kev4b.ece), `${fmt(K.confidence.scotus.conf)} / ${fmt(K.confidence.scotus.acc)}`],
-    ["CaseHOLD (5 options)", three(T.case_hold.jev.ece), three(T.case_hold.kev4b.ece), `${fmt(K.confidence.case_hold.conf)} / ${fmt(K.confidence.case_hold.acc)}`],
-    ["BANKING77 (77 intents)", three(DATA.intents.banking77.ece), three(K.intents.banking77.ece), `${fmt(K.intents.banking77.conf)} / ${fmt(K.intents.banking77.acc)}`],
-    ["CLINC150 (151 intents)", three(DATA.intents.clinc150.ece), three(K.intents.clinc150.ece), `${fmt(K.intents.clinc150.conf)} / ${fmt(K.intents.clinc150.acc)}`],
-  ].concat(K.suites.filter((s) => s.key.endsWith("test")).map((s) => [`Kev suite ${s.label}`, three(s.ece.jev), three(s.ece.kev4b), ""]));
-  table("table-cal", ["Task", "Jev ECE", "Kev-4B ECE", "Kev-4B mean confidence / accuracy, %"], rows);
+    ["LEDGAR (100 labels)", three(T.ledgar.jev.ece), three(T.ledgar.kev4b.ece), ca(K.confidence.ledgar), three(T.ledgar.llm2jev.ece), ca(T.ledgar.llm2jev)],
+    ["SCOTUS (13 labels)", three(T.scotus.jev.ece), three(T.scotus.kev4b.ece), ca(K.confidence.scotus), three(T.scotus.llm2jev.ece), ca(T.scotus.llm2jev)],
+    ["CaseHOLD (5 options)", three(T.case_hold.jev.ece), three(T.case_hold.kev4b.ece), ca(K.confidence.case_hold), three(T.case_hold.llm2jev.ece), ca(T.case_hold.llm2jev)],
+    ["BANKING77 (77 intents)", three(DATA.intents.banking77.ece), three(K.intents.banking77.ece), ca(K.intents.banking77), three(L.banking77.ece), ca(L.banking77)],
+    ["CLINC150 (151 intents)", three(DATA.intents.clinc150.ece), three(K.intents.clinc150.ece), ca(K.intents.clinc150), three(L.clinc150.ece), ca(L.clinc150)],
+  ].concat(K.suites.filter((s) => s.key.endsWith("test")).map((s) => [`Kev suite ${s.label}`, three(s.ece.jev), three(s.ece.kev4b), "", three(s.ece.llm2jev), ""]));
+  table("table-cal", ["Task", "Jev ECE", "Kev-4B ECE", "Kev-4B mean confidence / accuracy, %", "LLM2Jev ECE", "LLM2Jev mean confidence / accuracy, %"], rows);
   const cap = h("p"); cap.style.fontSize = "13px"; cap.style.color = "var(--muted)";
-  cap.textContent = "Expected calibration error, 10 equal-width bins; lower is better. Kev-4B's confidence sits below its accuracy on every LexGLUE and intent task shown.";
+  cap.textContent = "Expected calibration error, 10 equal-width bins; lower is better. Kev-4B's and LLM2Jev's confidence sits below their accuracy on every LexGLUE and intent task shown; LLM2Jev's, which normalizes one independent yes-probability per option, spreads thinnest on the largest label sets.";
   document.getElementById("table-cal").appendChild(cap);
 }
 
@@ -558,6 +572,7 @@ function summary() {
     ["luna", "GPT-5.6 Luna", M.luna, `$${DATA.costs.luna.toFixed(2)} for 23,607 questions`],
     ["bert", "BERT, fine-tuned", M.bert, `$${DATA.costs.bert_gpu.toFixed(2)} of GPU time to train`],
     ["kev4b", "Kev-4B, open weights", M.kev4b, `≤ $${DATA.costs.kev_gpu.toFixed(2)} of GPU time to serve`],
+    ["llm2jev", "LLM2Jev, prompted Qwen3.5-4B", M.llm2jev, `≤ $${DATA.costs.llm2jev_gpu.toFixed(2)} of GPU time to serve`],
   ];
   const box = document.getElementById("tiles");
   tiles.forEach(([k, label, m, sub]) => {
@@ -584,6 +599,10 @@ function summary() {
     ["note", (() => {
       const t = K.suites.find((s) => s.key === "transfer-v4-test"), d = K.suites.find((s) => s.key === "decision-v7-test");
       return `Kev-4B's training data alone does not explain it: ModernBERT-large fine-tuned on the same records trails Kev-4B by ${fmt(d.kev_minus_encoder.d)} points on Kev's training sources but ${fmt(t.kev_minus_encoder.d)} on held-out ones (${fmt(t.acc["mbl-s1"])}% vs ${fmt(t.acc.kev4b)}%), barely above an untrained control (${fmt(t.acc["nli-zeroshot"])}%).`;
+    })()],
+    ["note", (() => {
+      const S = K.suites.map((s) => s.l2j_kev.d);
+      return `LLM2Jev, which serves the same 4B base family as Kev-4B with no training, ties it on LexGLUE (${fmt(M.llm2jev.micro)} vs ${fmt(M.kev4b.micro)} average micro-F1, with opposite task profiles) but trails it on every Kev suite split by ${fmt(Math.min(...S))} to ${fmt(Math.max(...S))} points, most on applying stated rules.`;
     })()],
     ["note", `Outside law the pattern repeats: Jev trails fine-tuning on fine-grained intents (BANKING77 ${fmt(I.banking77.acc)} vs ${I.banking77.bert_full}) but finds out-of-scope requests far better (CLINC150 recall ${fmt(I.clinc150.oos_recall)} vs ${I.clinc150.bert_oos_recall}).`],
   ];
@@ -630,7 +649,8 @@ function setup() {
     ["Validation run", "Jev on 4 multi-label validation splits, for thresholds", `9,275 questions · $${C.jev_validation.toFixed(2)}`],
     ["Intent benchmarks", "BANKING77 and CLINC150 (OOS+), Jev zero-shot", `8,580 questions · $${C.intents.toFixed(2)}`],
     ["Kev-4B", "jaredpalmer/kev-4b · Kev's own server on a Modal L40S, bf16", `23,607 LexGLUE + 8,580 intent questions · ≤ $${C.kev_gpu.toFixed(2)} GPU, all Kev serving`],
-    ["Kev's suites", "transfer-v4 and decision-v7, dev and test, scored by Kev's own scorer", `3,908 records each for Jev, Luna, Kev-4B · $${C.kev_suites_openrouter.toFixed(2)} API`],
+    ["LLM2Jev", "Yinsongxu/LLM2Jev a4aafa8 with Qwen/Qwen3.5-4B · its own SGLang server on Modal H100s, bf16", `23,607 LexGLUE + 8,580 intent questions + Kev's suites · ≤ $${C.llm2jev_gpu.toFixed(2)} GPU, all LLM2Jev serving`],
+    ["Kev's suites", "transfer-v4 and decision-v7, dev and test, scored by Kev's own scorer", `3,908 records each for Jev, Luna, Kev-4B, LLM2Jev · $${C.kev_suites_openrouter.toFixed(2)} API`],
     ["ModernBERT-large, fine-tuned", "Cross-encoder on Kev's decision-v7 train split, H100 on Modal", `12,576 training records · $${C.encoder_gpu.toFixed(2)} GPU incl. zero-shot NLI control`],
   ];
   const box = document.getElementById("setup");
@@ -652,5 +672,21 @@ function encTable() {
     `ModernBERT-large, lr ${E.config.lr.toExponential(0)}, ${E.config.epochs} epochs, seed ${E.config.seed}, temperature ${E.temperature}. Differences are paired on the same questions.`;
 }
 
-summary(); chartA(); chartB(); why(); chartD(); chartE(); calTable(); encTable(); chartC(); setup();
+function l2jTable() {
+  const L = DATA.llm2jev, S = DATA.kev.suites;
+  const diff = (x) => `${fmt(x.d, true)} (${fmt(x.ci[0], true)} to ${fmt(x.ci[1], true)})`;
+  const B = L.jevbench;
+  document.getElementById("l2j-lede").textContent =
+    `LLM2Jev serves an ordinary chat model through the System One API without training it: each option becomes one yes-or-no prompt, the probability of "yes" is read from a single forward pass, and the options' yes-probabilities are scaled to sum to one. We ran its own server with Qwen3.5-4B, the model its authors benchmarked and the base family of Kev-4B, so the comparison with Kev-4B isolates what Kev's training adds. Our copy scored ${B.correct} of ${B.n} on the public JevBench items (${fmt(100 * B.correct / B.n)}%), against the ${B.published}% its authors report.`;
+  const lex = DATA.tasks.map((t) => [t.label, fmt(t.llm2jev.micro), fmt(t.kev4b.micro), fmt(t.jev.micro), diff(t.l2j_kev), diff(t.l2j_jev)]);
+  const M = DATA.means;
+  lex.push(["Mean of 7 LexGLUE tasks", fmt(M.llm2jev.micro), fmt(M.kev4b.micro), fmt(M.jev.micro), fmt(M.kev4b.micro - M.llm2jev.micro, true), fmt(M.jev.micro - M.llm2jev.micro, true)]);
+  const K = DATA.kev.intents;
+  const intents = [["BANKING77", "banking77"], ["CLINC150", "clinc150"]].map(([label, k]) =>
+    [label + (k === "banking77" ? " (Kev-4B trained on it)" : ""), fmt(L.intents[k].acc), fmt(K[k].acc), fmt(DATA.intents[k].acc), diff(L.intents[k].d_kev), diff(L.intents[k].d_jev)]);
+  const suites = S.map((s) => [`Kev ${s.label}${s.held_out ? ", held out" : ", Kev's training sources"}`, fmt(s.acc.llm2jev), fmt(s.acc.kev4b), fmt(s.acc.jev), diff(s.l2j_kev), diff(s.l2j_jev)]);
+  table("table-l2j", ["Suite", "LLM2Jev", "Kev-4B", "Jev", "Kev-4B − LLM2Jev", "Jev − LLM2Jev"], lex.concat(intents, suites));
+}
+
+summary(); chartA(); chartB(); why(); chartD(); chartE(); calTable(); encTable(); l2jTable(); chartC(); setup();
 </script>

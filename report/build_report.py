@@ -28,7 +28,7 @@ PUBLISHED = {  # read from the papers' tables, see RESULTS.md
     "banking77": {"bert_full": 93.66, "bert_10shot": 83.42, "bert_30shot": 90.03},
     "clinc150": {"bert_in_scope": 96.7, "bert_oos_recall": 59.2, "best_oos_recall": 66.0},
 }
-COMMIT = "151e864"
+COMMIT = "7cfafa9"
 
 
 def load(path: str) -> dict:
@@ -62,6 +62,8 @@ def build() -> dict:
     three = load("analysis/three-way.json")
     kev = load("analysis/jev-vs-kev4b.json")
     kev_auc = load("analysis/paired-auc-kev4b.json")["tasks"]
+    l2j = load("analysis/jev-vs-llm2jev.json")
+    l2j_kev = load("analysis/kev4b-vs-llm2jev.json")["paired"]["kev4b_vs_llm2jev"]
     tuning = load("analysis/threshold-tuning.json")["tasks"]
     intents = load("analysis/intents-test.json")["sources"]["jev"]
     src = three["sources"]
@@ -114,6 +116,23 @@ def build() -> dict:
                 "d": round(a["delta"], 3),
                 "ci": [round(x, 3) for x in a["delta_ci95"]],
             }
+        m = l2j["sources"]["llm2jev"][t]["metrics"]
+        row["llm2jev"] = {
+            "micro": pct(m["micro_f1"]),
+            "macro": pct(m["macro_f1"]),
+            "ci": [pct(x) for x in l2j["sources"]["llm2jev"][t]["ci95"]["micro_f1"]],
+            "ece": round(m["ece"], 3),
+            **(
+                {"conf": pct(m["mean_confidence"]), "acc": pct(m["accuracy"])}
+                if "accuracy" in m
+                else {}
+            ),
+        }
+        for key, pair in (("jev", l2j["paired"]["jev_vs_llm2jev"][t]), ("kev", l2j_kev[t])):
+            row[f"l2j_{key}"] = {
+                "d": pct(pair["delta_micro_f1"]),
+                "ci": [pct(x) for x in pair["delta_micro_f1_ci95"]],
+            }
         vs_luna = three["paired"]["jev_vs_luna"][t]
         row["delta_luna"] = {
             "d": pct(vs_luna["delta_micro_f1"]),
@@ -133,9 +152,16 @@ def build() -> dict:
 
     means = {
         k: {"micro": mean(k, "micro"), "macro": mean(k, "macro")}
-        for k in ("jev", "jev_tuned", "luna", "bert", "kev4b")
+        for k in ("jev", "jev_tuned", "luna", "bert", "kev4b", "llm2jev")
     }
-    expected = {"jev": 69.9, "jev_tuned": 74.2, "luna": 71.3, "bert": 77.4, "kev4b": 62.1}
+    expected = {
+        "jev": 69.9,
+        "jev_tuned": 74.2,
+        "luna": 71.3,
+        "bert": 77.4,
+        "kev4b": 62.1,
+        "llm2jev": 62.2,
+    }
     for k, v in expected.items():  # RESULTS.md means are computed from unrounded scores
         assert abs(means[k]["micro"] - v) <= 0.1, (k, means[k]["micro"], v)
 
@@ -175,13 +201,23 @@ def build() -> dict:
                 "n": e["n_questions"],
                 "acc": {
                     m: round(e["models"][m]["acc"] * 100, 1)
-                    for m in ("jev", "luna", "kev4b", "mbl-s1", "nli-zeroshot")
+                    for m in ("jev", "luna", "kev4b", "llm2jev", "mbl-s1", "nli-zeroshot")
                 },
                 "acc_ci": {
                     m: [round(x * 100, 1) for x in e["models"][m]["acc_ci"]]
-                    for m in ("kev4b", "mbl-s1", "nli-zeroshot")
+                    for m in ("kev4b", "llm2jev", "mbl-s1", "nli-zeroshot")
                 },
-                "ece": {m: round(e["models"][m]["ece"], 3) for m in ("jev", "kev4b", "mbl-s1")},
+                "ece": {
+                    m: round(e["models"][m]["ece"], 3)
+                    for m in ("jev", "kev4b", "llm2jev", "mbl-s1")
+                },
+                **{
+                    f"l2j_{short}": {
+                        "d": round(e[f"{m}_minus_llm2jev"]["acc"] * 100, 1),
+                        "ci": [round(x * 100, 1) for x in e[f"{m}_minus_llm2jev"]["ci"]],
+                    }
+                    for short, m in (("jev", "jev"), ("kev", "kev4b"))
+                },
                 "kev_minus_encoder": {
                     "d": round(e["kev4b_minus_mbl-s1"]["acc"] * 100, 1),
                     "ci": [round(x * 100, 1) for x in e["kev4b_minus_mbl-s1"]["ci"]],
@@ -236,7 +272,9 @@ def build() -> dict:
             "kev_gpu": 8.01,  # Modal billing report for app jev-test-kev, see RESULTS.md
             "kev_suites_openrouter": 0.42,
             "encoder_gpu": 2.15,  # Modal billing report for app jev-kev-encoder, see RESULTS.md
+            "llm2jev_gpu": 28.84,  # Modal billing report for app jev-test-llm2jev, see RESULTS.md
         },
+        "llm2jev": llm2jev_block(),
         "encoder": {
             "config": load("results/kev-encoder/mbl-s1/config.json"),
             "temperature": round(
@@ -269,6 +307,37 @@ def build() -> dict:
                 **PUBLISHED["clinc150"],
             },
         },
+    }
+
+
+def llm2jev_block() -> dict:
+    """Intent results and the serving check for LLM2Jev (Qwen3.5-4B, prompted)."""
+    jev = load("analysis/intents-jev-vs-llm2jev.json")
+    kev = load("analysis/intents-kev4b-vs-llm2jev.json")["paired"]["kev4b_vs_llm2jev"]
+    intents = {}
+    for t in ("banking77", "clinc150"):
+        src = jev["sources"]["llm2jev"][t]
+        m = src["metrics"]
+        intents[t] = {
+            "acc": pct(m["accuracy"]),
+            "ci": [pct(x) for x in src["ci95"]["micro_f1"]],
+            "ece": round(m["ece"], 3),
+            "conf": pct(m["mean_confidence"]),
+            "top3": pct(m["top3_accuracy"]),
+            **({"oos_recall": pct(m["oos_recall"])} if "oos_recall" in m else {}),
+            **{
+                f"d_{key}": {
+                    "d": pct(pair[t]["delta_micro_f1"]),
+                    "ci": [pct(x) for x in pair[t]["delta_micro_f1_ci95"]],
+                }
+                for key, pair in (("jev", jev["paired"]["jev_vs_llm2jev"]), ("kev", kev))
+            },
+        }
+    bench = load("results/llm2jev/jevbench/summary.json")
+    return {
+        "intents": intents,
+        # published: LLM2Jev's docs/jevbench.md at commit a4aafa8
+        "jevbench": {"correct": bench["n_correct"], "n": bench["n_scorable"], "published": 76.2},
     }
 
 
