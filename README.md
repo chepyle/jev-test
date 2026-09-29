@@ -21,6 +21,7 @@ Full test split (23,607 examples), zero-shot, micro-F1 arithmetic mean across th
 | Jev, per-label thresholds tuned on validation | System One | 74.2 | 66.3 | +$2.47 |
 | GPT-5.6 Luna (`openai/gpt-5.6-luna`) | chat, JSON schema | 71.3 | 63.9 | $16.45 |
 | Kev-4B (`jaredpalmer/kev-4b`, open weights, self-served) | System One | 62.1 | 55.5 | ≤ $8.01 GPU |
+| LLM2Jev on Qwen3.5-4B (prompted, no training, self-served) | System One | 62.2 | 53.8 | ≤ $28.84 GPU |
 | BERT-base, fine-tuned (reproduced, seed 1) | supervised | 77.4 | 69.3 | $21.58 GPU |
 
 Jev and Luna are close: Luna is ahead on ECtHR A/B, EUR-LEX, and UNFAIR-ToS, Jev on SCOTUS and
@@ -31,7 +32,10 @@ held-out suite Jev also leads it by 3.8 points, while Kev-4B leads on its traini
 validation split (no test data, no training examples) cuts its gap to BERT from 7.5 to 3.2 μ-F1.
 Outside law, Jev trails published fine-tuned BERT on fine-grained intents (BANKING77 80.6 vs
 93.7 accuracy; CLINC150 in-scope 89.0 vs 96.7) but finds out-of-scope requests far better
-(CLINC150 recall 88.1 vs 59.2). [`RESULTS.md`](RESULTS.md) has per-task
+(CLINC150 recall 88.1 vs 59.2). LLM2Jev, which serves a stock Qwen3.5-4B through the same API
+with no training, ties Kev-4B on the LexGLUE mean with opposite task profiles (SCOTUS +12.4,
+ECtHR A −10.1) and trails it by 7 to 11 points on all four Kev splits, most on rule
+application. [`RESULTS.md`](RESULTS.md) has per-task
 intervals, kappa, calibration, paired tests, and caveats, including the protocol difference.
 
 ## Quick start
@@ -260,6 +264,38 @@ uvx modal run encoder/modal_app.py::predict --name mbl-s1
 uvx modal volume get jev-kev-encoder runs/mbl-s1/logits.jsonl results/kev-encoder/mbl-s1/
 kev_suites/run_encoder.sh mbl-s1
 uv run python kev_suites/summarize.py > analysis/kev-suites.md
+```
+
+### LLM2Jev: a prompted open model behind the same API
+
+[LLM2Jev](https://github.com/Yinsongxu/LLM2Jev) serves any local chat model as a System One
+endpoint without training: each candidate becomes one yes/no prompt, P(yes) comes from the
+next-token logits of a zero-token prefill, and choice candidates are normalized to sum to one.
+`llm2jev_bench/modal_app.py` runs its own `llm2jev-serve --backend sglang` (commit `a4aafa8`,
+SGLang 0.5.20) with Qwen3.5-4B on a Modal H100, and the LexGLUE, intent and Kev-suite runs send
+it the same requests as Jev.
+
+```bash
+git clone https://github.com/fstandhartinger/jevbench third_party/jevbench && git -C third_party/jevbench checkout 9ec6f15
+uvx modal secret create llm2jev-serve-key LLM2JEV_API_KEY="$LLM2JEV_API_KEY"
+uvx modal run llm2jev_bench/modal_app.py::download
+# staged prefix reuse (served) vs no prefix cache, on 27 real requests
+uv run python llm2jev_bench/payloads.py data/smoke50 data/intents-smoke --per-task 3 \
+  --output results/llm2jev/prefix-payloads.jsonl
+uvx modal run llm2jev_bench/modal_app.py::prefix_check --payloads results/llm2jev/prefix-payloads.jsonl
+uv run python llm2jev_bench/compare_configs.py results/llm2jev/prefix-check.json staged reference
+uvx modal deploy llm2jev_bench/modal_app.py
+LLM2JEV_URL=https://<workspace>--jev-test-llm2jev-api.modal.run
+# serving check against LLM2Jev's published JevBench number (run inside third_party/jevbench)
+python -m jevbench.cli run --tasks datasets/public/original.jsonl,datasets/public/easy.jsonl,datasets/public/hard.jsonl \
+  --adapter typesafe --endpoint "$LLM2JEV_URL" --key-env LLM2JEV_API_KEY --model qwen3.5-4b \
+  --cost-basis self_hosted_modal_h100 --reserve-usd 0 --results <out>/results.jsonl
+OPENROUTER_API_KEY=$LLM2JEV_API_KEY uv run python jobs/launch.py llm2jev-full data/full-test \
+  results/llm2jev-full --model qwen3.5-4b --endpoint "$LLM2JEV_URL/v1/systemone" --concurrency 32 --timeout 600
+OPENROUTER_API_KEY=$LLM2JEV_API_KEY uv run python jobs/launch.py llm2jev-intents data/intents-test \
+  results/llm2jev-intents-test --model qwen3.5-4b --endpoint "$LLM2JEV_URL/v1/systemone" --concurrency 16 --timeout 600
+LLM2JEV_URL=$LLM2JEV_URL kev_suites/run_llm2jev.sh
+llm2jev_bench/analyze.sh
 ```
 
 ## Fine-tuned BERT baseline

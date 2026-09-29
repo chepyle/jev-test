@@ -1,4 +1,4 @@
-"""Summarize Jev, Luna and Kev-4B on Kev's frozen suites.
+"""Summarize Jev, Luna, Kev-4B, LLM2Jev and the encoders on Kev's frozen suites.
 
 Reads `results/kev-suites/<model>-<suite>-<split>/{report,rows}.json` written by
 `kev.benchmark`, and Kev-4B's published release/locked-test reports from
@@ -19,12 +19,20 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results" / "kev-suites"
 KEV = ROOT / "third_party" / "kev"
-MODELS = ("jev", "luna", "kev4b", "mbl-s1", "nli-zeroshot")
-DIFFS = [("jev", "luna"), ("jev", "kev4b"), ("kev4b", "mbl-s1"), ("jev", "mbl-s1")]
+MODELS = ("jev", "luna", "kev4b", "llm2jev", "mbl-s1", "nli-zeroshot")
+DIFFS = [
+    ("jev", "luna"),
+    ("jev", "kev4b"),
+    ("kev4b", "mbl-s1"),
+    ("jev", "mbl-s1"),
+    ("jev", "llm2jev"),
+    ("kev4b", "llm2jev"),
+]
 LABELS = {
     "jev": "Jev 1.13 (System One)",
     "luna": "GPT-5.6 Luna (chat JSON)",
     "kev4b": "Kev-4B (served, temperature-scaled)",
+    "llm2jev": "LLM2Jev on Qwen3.5-4B (prompted yes/no prefill, no training)",
     "mbl-s1": "ModernBERT-large cross-encoder, fine-tuned on Kev's train split",
     "nli-zeroshot": "ModernBERT-large zero-shot NLI (no Kev training)",
 }
@@ -145,6 +153,7 @@ def print_tables(summary):
         "jev": "Jev",
         "luna": "Luna",
         "kev4b": "Kev-4B",
+        "llm2jev": "LLM2Jev",
         "mbl-s1": "ModernBERT-ft",
         "nli-zeroshot": "ModernBERT-NLI",
     }

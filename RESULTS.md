@@ -596,3 +596,155 @@ Findings:
   so truncation should be rare, but it was not counted). A longer or tuned run could narrow
   the trained-source gap; the held-out gap is 3.5x the trained-source one, which a few
   points of tuning would not close.
+
+## Fifth model: LLM2Jev, a prompted Qwen3.5-4B behind the System One API
+
+[LLM2Jev](https://github.com/Yinsongxu/LLM2Jev) (Apache-2.0, commit `a4aafa8`) turns a stock
+chat model into a System One server with no training. Every candidate of every question becomes
+one yes/no chat prompt ("Is this candidate "X" the best answer?"); the server reads P(yes) from
+the next-token logits of a zero-token SGLang prefill. Choice candidates are L1-normalized; a
+noul with true/false criteria (our multi-label requests) is scored as two candidates and
+normalized the same way. Its README reports 76.2% on the 231 public JevBench items with
+Qwen3.5-4B. That base matters here: Kev-4B is Qwen3.5-4B-Base plus a trained LoRA and pointer
+head, so LLM2Jev vs Kev-4B compares prompting an instruct model with training on Kev's data at
+the same size and family.
+
+- Serving: LLM2Jev's own `llm2jev-serve --backend sglang` (staged submission, its default) on
+  `lmsysorg/sglang:v0.5.20-cu130` (the SGLang version its lockfile pins), `Qwen/Qwen3.5-4B` at
+  revision `851bf6e`, bf16, served name `qwen3.5-4b`, H100 on Modal, at most two containers.
+  Code: `llm2jev_bench/modal_app.py`. Runs 2026-09-28/29.
+- Same requests as Jev: `jev-bench run --endpoint <modal url> --model qwen3.5-4b` (same
+  instructions, label descriptions, 48,000-character truncation, 0.5 multi-label threshold);
+  Kev's suites through `kev.benchmark --remote` (`kev_suites/run_llm2jev.sh`).
+- Coverage: LexGLUE test 23,607 / 23,607, intents test 8,580 / 8,580, Kev's suites 3,908 /
+  3,908 records (0 rejected). Every response reports `qwen3.5-4b`.
+- Cost: $28.84 Modal GPU for everything below (Modal billing report, app `jev-test-llm2jev`),
+  including the checks, the smoke run and idle scale-down time. LLM2Jev counted 3.11B prompt
+  tokens on LexGLUE, most of them served from the prefix cache.
+- Incidents, none of which lost or duplicated a result (each ledger has one successful record
+  per id): (1) Modal disabled the workspace mid-run (HTTP 404, "workspace is disabled", from
+  22:36 until re-enabled by 23:10 local); the runners stopped and resumed from their checkpoints. (2) SGLang 0.5.20's
+  scheduler died three times at container start: it gives a request without
+  `token_ids_logprob` a list placeholder and then calls `.tolist()` on it, and its own startup
+  warmup `/generate` request shares a batch with the first scoring requests. Fixed with
+  `--skip-server-warmup` (a 64-request burst on cold containers then returned 64 × HTTP 200);
+  `--disable-overlap-schedule`, an earlier partial workaround, stayed on for every result. 52
+  LexGLUE and 32 intent requests failed during these incidents and were re-sent on resume.
+
+Checks before the full runs:
+
+- **Serving matches LLM2Jev's published number.** JevBench (`fstandhartinger/jevbench@9ec6f15`,
+  typesafe adapter, the 231 public items) through our endpoint: 177 / 231 = 76.6% (±5.5 at
+  95%), against LLM2Jev's 76.2% (176 / 231). `results/llm2jev/jevbench/`. Latency there (P50
+  0.55 s) includes the internet round trip to Modal and is not comparable to LLM2Jev's local
+  48 ms.
+- **Prefix reuse does not change answers.** Qwen3.5 is a hybrid (Gated DeltaNet) model, and
+  LLM2Jev's speed comes from SGLang reusing each document's prefix across candidates. On 27 real
+  requests (3 per task from the LexGLUE and intent smoke sets, 1,422 probabilities), the served
+  config against one with no prefix cache and all candidates submitted at once: mean |Δp|
+  0.0018, max 0.033, 1 of 399 decisions differs; 694k vs 2.09M prefilled tokens, 14.8 s vs 32.6 s
+  serially. `llm2jev_bench/compare_configs.py`, `results/llm2jev/prefix-check.json`.
+- **Resume**: a 350-document smoke run killed at 152 and relaunched finished with 350 unique
+  ids and no duplicates.
+
+### LexGLUE
+
+Paired bootstrap, 1000 resamples, seed 0 (`analysis/jev-vs-llm2jev.json`,
+`analysis/kev4b-vs-llm2jev.json`); ROC-AUC from `analysis/paired-auc-llm2jev.json` and
+`analysis/paired-auc-kev4b-vs-llm2jev.json`.
+
+| Task | LLM2Jev μ-F1 [95% CI] | Kev-4B | Jev | Jev − LLM2Jev Δ μ-F1 [95% CI] | Kev-4B − LLM2Jev Δ μ-F1 [95% CI] | LLM2Jev m-F1 | Only Kev / only LLM2Jev exact |
+|---|---|---:|---:|---|---|---:|---:|
+| ECtHR A | 53.8 [52.1, 55.6] | 63.8 | 73.0 | +19.2 [+17.6, +20.8] | +10.1 [+8.0, +12.0] | 49.6 | 258 / 62 |
+| ECtHR B | 61.3 [60.0, 62.8] | 70.8 | 75.4 | +14.1 [+12.8, +15.4] | +9.4 [+7.7, +11.2] | 56.8 | 253 / 61 |
+| SCOTUS | 71.6 [69.3, 74.1] | 59.3 | 72.6 | +0.9 [−0.6, +2.3] | −12.4 [−14.5, −10.1] | 63.4 | 54 / 227 |
+| EUR-LEX | 37.1 [36.7, 37.4] | 37.2 | 39.1 | +2.0 [+1.8, +2.3] | +0.1 [−0.1, +0.4] | 33.5 | 0 / 0 |
+| LEDGAR | 71.3 [70.3, 72.1] | 68.0 | 75.3 | +4.0 [+3.4, +4.7] | −3.3 [−4.0, −2.6] | 57.9 | 569 / 896 |
+| UNFAIR-ToS | 74.3 [72.2, 76.4] | 69.9 | 76.4 | +2.1 [+0.5, +3.7] | −4.3 [−6.1, −2.4] | 49.8 | 112 / 188 |
+| CaseHOLD | 65.9 [64.2, 67.3] | 65.5 | 77.3 | +11.4 [+9.9, +12.9] | −0.4 [−1.8, +1.1] | 65.9 | 380 / 394 |
+| Arithmetic mean | 62.2 | 62.1 | 69.9 | | | 53.8 | |
+| Harmonic mean | 59.1 | 59.4 | 66.3 | | | 51.5 | |
+
+| Task | LLM2Jev ECE | LLM2Jev mean conf. / accuracy | Pred. / gold labels per doc (LLM2Jev, Kev-4B) | Macro ROC-AUC Jev − LLM2Jev [95% CI] | Kev-4B − LLM2Jev [95% CI] |
+|---|---:|---|---|---|---|
+| ECtHR A | 0.286 | | 2.53, 1.34 / 1.09 | +0.035 [+0.030, +0.041] | +0.008 [+0.002, +0.015] |
+| ECtHR B | 0.275 | | 2.85, 1.65 / 1.44 | +0.029 [+0.023, +0.036] | +0.015 [+0.008, +0.022] |
+| SCOTUS | 0.513 | 0.203 / 0.716 | | | |
+| EUR-LEX | 0.195 | | 9.88, 11.60 / 5.08 | +0.031 [+0.028, +0.034] | +0.020 [+0.016, +0.023] |
+| LEDGAR | 0.627 | 0.086 / 0.713 | | | |
+| UNFAIR-ToS | 0.169 | | 0.41, 0.45 / 0.12 | +0.003 [+0.001, +0.005] | −0.003 [−0.006, −0.000] |
+| CaseHOLD | 0.307 | 0.352 / 0.659 | | | |
+
+### Intent detection
+
+`analysis/intents-jev-vs-llm2jev.json`, `analysis/intents-kev4b-vs-llm2jev.json`:
+
+| Benchmark | LLM2Jev [95% CI] | Kev-4B | Jev | Jev − LLM2Jev [95% CI] | Kev-4B − LLM2Jev [95% CI] | LLM2Jev ECE / mean conf. |
+|---|---|---:|---:|---|---|---|
+| BANKING77 accuracy | 67.3 [65.8, 68.9] | 84.2 | 80.6 | +13.3 [+11.8, +14.7] | +16.9 [+15.1, +18.4] | 0.577 / 0.096 |
+| CLINC150 overall accuracy | 73.3 [72.2, 74.6] | 76.8 | 88.9 | +15.5 [+14.4, +16.6] | +3.4 [+2.2, +4.6] | 0.667 / 0.066 |
+| CLINC150 in-scope accuracy | 75.8 [74.6, 77.1] | 79.4 | 89.0 | | | |
+| CLINC150 out-of-scope recall / precision | 62.1 / 80.9 | 64.9 / 69.0 | 88.1 / 81.9 | | | |
+
+LLM2Jev top-3 accuracy: BANKING77 84.2, CLINC150 88.8.
+
+### Kev's suites
+
+Accuracy, 95% bootstrap over record groups, 1000 resamples, seed 0 (`analysis/kev-suites.md`;
+adding LLM2Jev left every earlier entry of `analysis/kev-suites.json` byte-identical):
+
+| Split | n | LLM2Jev | Kev-4B | Jev | Jev − LLM2Jev [95% CI] | Kev-4B − LLM2Jev [95% CI] | LLM2Jev ECE / mean conf. |
+|---|---:|---|---:|---:|---|---|---|
+| transfer-v4 dev | 656 | 0.730 [0.691, 0.767] | 0.814 | 0.855 | +0.125 [+0.090, +0.161] | +0.084 [+0.049, +0.119] | 0.094 / – |
+| transfer-v4 test | 656 | 0.765 [0.732, 0.799] | 0.838 | 0.877 | +0.111 [+0.077, +0.144] | +0.073 [+0.039, +0.110] | 0.117 / 0.649 |
+| decision-v7 dev | 1264 | 0.773 [0.747, 0.799] | 0.871 | 0.845 | +0.072 [+0.049, +0.093] | +0.098 [+0.077, +0.122] | 0.153 / – |
+| decision-v7 test | 1200 | 0.759 [0.736, 0.783] | 0.866 | 0.835 | +0.076 [+0.053, +0.101] | +0.107 [+0.083, +0.131] | 0.137 / 0.626 |
+
+Findings:
+
+- **Trained beats prompted at the same size on Kev's suites.** Kev-4B leads LLM2Jev by 7.3 to
+  10.7 points on all four splits, intervals above zero, and on held-out sources (7.3 to 8.4) as
+  well as on its own training sources (9.8 to 10.7). Against the ModernBERT cross-encoder
+  trained on Kev's data, LLM2Jev is ahead on held-out sources (test 0.765 vs 0.604) and behind on
+  the trained ones (0.759 vs 0.798).
+- **The gap is in rule application.** On held-out test items LLM2Jev scores 0.500 on
+  composed rules with an exception and 0.562 with a negation (two options, n=32 each; Kev-4B
+  0.875 and 0.906) and 0.475 on deadline items (three options, n=40; Kev-4B 0.800). On the
+  quantity-limit policy items it answers "held for review" for all 40 test items, whatever the
+  quantity (0.300; Kev-4B 0.900), and 0.250 on the 24 dev items. It matches Kev-4B on the
+  standard datasets (QNLI 0.887 vs 0.900, PAWS 0.825 vs 0.825, SciQ 1.000 vs 1.000, n=80 each).
+- **On LexGLUE the mean ties Kev-4B (62.2 vs 62.1 μ-F1) with opposite task profiles.** LLM2Jev
+  leads on SCOTUS (+12.4), UNFAIR-ToS (+4.3) and LEDGAR (+3.3) and trails on ECtHR A and B
+  (−10.1, −9.4); EUR-LEX and CaseHOLD are ties. Kev-4B trained on states of at most 384 tokens,
+  and LLM2Jev uses the instruct model's native context, so length is a candidate explanation
+  for SCOTUS (613 of 1,400 documents truncated at 48,000 characters); this run does not test
+  it. Jev leads LLM2Jev on the mean by 7.7 μ-F1 (69.9 vs 62.2) and on six of seven tasks, most
+  on ECtHR A (+19.2) and CaseHOLD (+11.4); SCOTUS is a tie (+0.9 [−0.6, +2.3]). Jev also ranks
+  multi-label candidates better on all four tasks (ROC-AUC +0.003 to +0.035).
+- **ECtHR errors are over-prediction at the 0.5 cut-off.** LLM2Jev predicts 2.5 and 2.8
+  articles per case where gold has 1.1 and 1.4 (precision 0.40 and 0.46 at recall 0.92). The
+  test-set oracle threshold (0.55, diagnostic only) would lift ECtHR A to 58.0, still below
+  Kev-4B's 63.8.
+- **Choice probabilities are uninformative as confidences on large label sets.** Normalizing
+  independent yes-probabilities spreads the mass across every plausible candidate: mean
+  confidence 0.086 at 0.713 accuracy on LEDGAR (100 labels), 0.066 at 0.733 on CLINC150 (151),
+  0.203 at 0.716 on SCOTUS (13), ECE 0.51 to 0.67. The ranking holds (top-3 accuracy 84 to 89%),
+  so the argmax is usable and the probabilities are not. On Kev's suites (2 to 5 options for
+  most questions) the same under-confidence is milder: mean confidence 0.63 to 0.65 at 0.76 to
+  0.77 accuracy. No temperature or calibration fit was applied, as LLM2Jev ships none.
+- **Exact 0.5 ties are rare.** A multi-label noul lands on exactly 0.5 when the model says yes
+  (or no) to both the true and the false candidate with probability ~1; the strict `> 0.5` rule
+  reads that as "does not apply". 2,599 of 532,856 label decisions (0.12% to 1.1% per task),
+  264 of them gold-positive (`analysis/llm2jev-ties.json`).
+- **Intents: LLM2Jev trails both models.** On CLINC150, which is not in Kev's training data,
+  Jev leads by 15.5 and Kev-4B by 3.4, and LLM2Jev's out-of-scope recall is 62.1 vs Jev's 88.1.
+  BANKING77 is in Kev-4B's training data, so its +16.9 there is not zero-shot.
+- **The JevBench ranking does not carry over.** LLM2Jev's comparison table
+  (`docs/jevbench.md`, kev 4B from JevBench's published v1.2 results) puts LLM2Jev (76.2%) above
+  kev 4B (66.2%) on the 231 public items; on Kev's 3,908 records Kev-4B leads by 7 to 11 points,
+  and on LexGLUE they tie. The 231-item accuracy has an interval of about ±5.5 points, and the
+  kev 4B figure there is JevBench's measurement, not ours.
+- Limits: one base model (the one LLM2Jev published), one prompt (LLM2Jev's default), one run;
+  multi-label requests always carry true/false criteria, so LLM2Jev's single-candidate noul
+  path (raw P(yes), no normalization) was not tested; bf16 serving numerics shift a few
+  decisions (1 in 399 between cache configs).

@@ -1,0 +1,26 @@
+{
+  "ecthr_a": {
+    "decisions": 10000,
+    "ties": 114,
+    "ties_gold_positive": 6,
+    "tie_rate": 0.0114
+  },
+  "ecthr_b": {
+    "decisions": 10000,
+    "ties": 78,
+    "ties_gold_positive": 6,
+    "tie_rate": 0.0078
+  },
+  "eurlex": {
+    "decisions": 500000,
+    "ties": 2391,
+    "ties_gold_positive": 252,
+    "tie_rate": 0.004782
+  },
+  "unfair_tos": {
+    "decisions": 12856,
+    "ties": 16,
+    "ties_gold_positive": 0,
+    "tie_rate": 0.0012445550715619166
+  }
+}
