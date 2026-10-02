@@ -269,6 +269,72 @@
             }
           }
         },
+        "clef-flash": {
+          "served_model": "Cloudflare/clef-flash@17f0b0a",
+          "coverage": {
+            "requested_records": 764,
+            "requested_questions": 764,
+            "evaluated_records": 764,
+            "evaluated_questions": 764,
+            "rejected_records": 0,
+            "truncated_records": 0
+          },
+          "acc": 0.8384146341463414,
+          "acc_ci": [
+            0.8095916028266354,
+            0.8673965753810875
+          ],
+          "ece": 0.056462364048282435,
+          "brier": 0.24386675540447936,
+          "nll": 0.44161235908367263,
+          "confident_error_rate": 0.04573170731707317,
+          "by_source": {
+            "composition_held_and_or": {
+              "n": 32,
+              "acc": 0.90625
+            },
+            "composition_held_conditional": {
+              "n": 32,
+              "acc": 0.9375
+            },
+            "composition_held_or_not": {
+              "n": 32,
+              "acc": 0.90625
+            },
+            "contrastive_authorization": {
+              "n": 40,
+              "acc": 1.0
+            },
+            "contrastive_deadline": {
+              "n": 40,
+              "acc": 0.8
+            },
+            "emotion": {
+              "n": 80,
+              "acc": 0.6
+            },
+            "mmlu": {
+              "n": 80,
+              "acc": 0.8625
+            },
+            "paws": {
+              "n": 80,
+              "acc": 0.7625
+            },
+            "qnli": {
+              "n": 80,
+              "acc": 0.9
+            },
+            "sciq": {
+              "n": 80,
+              "acc": 0.9875
+            },
+            "tweet_offensive": {
+              "n": 80,
+              "acc": 0.7625
+            }
+          }
+        },
         "mbl-s1": {
           "served_model": "mbl-s1",
           "coverage": {
@@ -442,6 +508,20 @@
         "ci": [
           0.04945574954429204,
           0.11854236850654408
+        ]
+      },
+      "jev_minus_clef-flash": {
+        "acc": 0.01676829268292683,
+        "ci": [
+          -0.014061018607163306,
+          0.04852094192451295
+        ]
+      },
+      "kev4b_minus_clef-flash": {
+        "acc": -0.024390243902439025,
+        "ci": [
+          -0.05185681738520855,
+          0.0030218388475425533
         ]
       }
     },
@@ -713,6 +793,72 @@
             }
           }
         },
+        "clef-flash": {
+          "served_model": "Cloudflare/clef-flash@17f0b0a",
+          "coverage": {
+            "requested_records": 764,
+            "requested_questions": 764,
+            "evaluated_records": 764,
+            "evaluated_questions": 764,
+            "rejected_records": 0,
+            "truncated_records": 0
+          },
+          "acc": 0.8490853658536586,
+          "acc_ci": [
+            0.8215287713841368,
+            0.8772977657935285
+          ],
+          "ece": 0.048968625431826014,
+          "brier": 0.22066492553100026,
+          "nll": 0.4148471821002421,
+          "confident_error_rate": 0.042682926829268296,
+          "by_source": {
+            "composition_final_combination": {
+              "n": 32,
+              "acc": 0.9375
+            },
+            "composition_final_exception": {
+              "n": 32,
+              "acc": 0.96875
+            },
+            "composition_final_negation": {
+              "n": 32,
+              "acc": 0.78125
+            },
+            "contrastive_authorization": {
+              "n": 40,
+              "acc": 1.0
+            },
+            "contrastive_deadline": {
+              "n": 40,
+              "acc": 0.9
+            },
+            "emotion": {
+              "n": 80,
+              "acc": 0.625
+            },
+            "mmlu": {
+              "n": 80,
+              "acc": 0.75
+            },
+            "paws": {
+              "n": 80,
+              "acc": 0.8625
+            },
+            "qnli": {
+              "n": 80,
+              "acc": 0.8625
+            },
+            "sciq": {
+              "n": 80,
+              "acc": 1.0
+            },
+            "tweet_offensive": {
+              "n": 80,
+              "acc": 0.8375
+            }
+          }
+        },
         "mbl-s1": {
           "served_model": "mbl-s1",
           "coverage": {
@@ -886,6 +1032,20 @@
         "ci": [
           0.03887423952156261,
           0.1097651713124274
+        ]
+      },
+      "jev_minus_clef-flash": {
+        "acc": 0.027439024390243903,
+        "ci": [
+          0.0,
+          0.05191237155582572
+        ]
+      },
+      "kev4b_minus_clef-flash": {
+        "acc": -0.010670731707317074,
+        "ci": [
+          -0.036991420973114336,
+          0.015038728041824016
         ]
       }
     },
@@ -1365,6 +1525,124 @@
             }
           }
         },
+        "clef-flash": {
+          "served_model": "Cloudflare/clef-flash@17f0b0a",
+          "coverage": {
+            "requested_records": 1204,
+            "requested_questions": 1468,
+            "evaluated_records": 1204,
+            "evaluated_questions": 1468,
+            "rejected_records": 0,
+            "truncated_records": 0
+          },
+          "acc": 0.8852848101265823,
+          "acc_ci": [
+            0.8646904291494032,
+            0.9062524187306501
+          ],
+          "ece": 0.020703518061509548,
+          "brier": 0.169363138824104,
+          "nll": 0.328397459968167,
+          "confident_error_rate": 0.02531645569620253,
+          "by_source": {
+            "agnews": {
+              "n": 80,
+              "acc": 0.85
+            },
+            "agnews_yn": {
+              "n": 160,
+              "acc": 0.9125
+            },
+            "amazon": {
+              "n": 80,
+              "acc": 0.6875
+            },
+            "banking77": {
+              "n": 80,
+              "acc": 0.95
+            },
+            "boolq": {
+              "n": 80,
+              "acc": 0.9
+            },
+            "composition_atom": {
+              "n": 16,
+              "acc": 1.0
+            },
+            "composition_conditional": {
+              "n": 16,
+              "acc": 0.9375
+            },
+            "composition_conjunction": {
+              "n": 16,
+              "acc": 0.8125
+            },
+            "composition_disjunction": {
+              "n": 16,
+              "acc": 1.0
+            },
+            "composition_exception": {
+              "n": 16,
+              "acc": 1.0
+            },
+            "composition_negation": {
+              "n": 16,
+              "acc": 1.0
+            },
+            "composition_nested_and": {
+              "n": 16,
+              "acc": 1.0
+            },
+            "composition_nested_or": {
+              "n": 16,
+              "acc": 1.0
+            },
+            "contrastive_age_eligibility": {
+              "n": 24,
+              "acc": 1.0
+            },
+            "contrastive_quantity_limit": {
+              "n": 24,
+              "acc": 1.0
+            },
+            "contrastive_return_window": {
+              "n": 24,
+              "acc": 0.9583333333333334
+            },
+            "contrastive_spend_threshold": {
+              "n": 24,
+              "acc": 1.0
+            },
+            "dbpedia14": {
+              "n": 80,
+              "acc": 0.95
+            },
+            "imdb": {
+              "n": 80,
+              "acc": 0.9625
+            },
+            "mnli": {
+              "n": 80,
+              "acc": 0.925
+            },
+            "sst5": {
+              "n": 80,
+              "acc": 0.6375
+            },
+            "trec": {
+              "n": 80,
+              "acc": 0.95
+            },
+            "yelp": {
+              "n": 80,
+              "acc": 0.7125
+            },
+            "yelp_yn": {
+              "n": 80,
+              "acc": 0.9
+            }
+          }
+        },
         "mbl-s1": {
           "served_model": "mbl-s1",
           "coverage": {
@@ -1642,6 +1920,20 @@
         "ci": [
           0.07654957818441065,
           0.12201291564393468
+        ]
+      },
+      "jev_minus_clef-flash": {
+        "acc": -0.040348101265822785,
+        "ci": [
+          -0.05971425209309778,
+          -0.021071602290461983
+        ]
+      },
+      "kev4b_minus_clef-flash": {
+        "acc": -0.014240506329113924,
+        "ci": [
+          -0.029942660904758594,
+          0.000791765637371338
         ]
       }
     },
@@ -1993,6 +2285,92 @@
             }
           }
         },
+        "clef-flash": {
+          "served_model": "Cloudflare/clef-flash@17f0b0a",
+          "coverage": {
+            "requested_records": 1176,
+            "requested_questions": 1440,
+            "evaluated_records": 1176,
+            "evaluated_questions": 1440,
+            "rejected_records": 0,
+            "truncated_records": 0
+          },
+          "acc": 0.8716666666666667,
+          "acc_ci": [
+            0.8500400221454694,
+            0.8923854276810061
+          ],
+          "ece": 0.0358559051016081,
+          "brier": 0.18703032890028073,
+          "nll": 0.3594326607898389,
+          "confident_error_rate": 0.020833333333333332,
+          "by_source": {
+            "agnews": {
+              "n": 80,
+              "acc": 0.8625
+            },
+            "agnews_yn": {
+              "n": 160,
+              "acc": 0.9375
+            },
+            "amazon": {
+              "n": 80,
+              "acc": 0.55
+            },
+            "banking77": {
+              "n": 80,
+              "acc": 0.9375
+            },
+            "boolq": {
+              "n": 80,
+              "acc": 0.85
+            },
+            "contrastive_age_eligibility": {
+              "n": 40,
+              "acc": 1.0
+            },
+            "contrastive_quantity_limit": {
+              "n": 40,
+              "acc": 1.0
+            },
+            "contrastive_return_window": {
+              "n": 40,
+              "acc": 0.925
+            },
+            "contrastive_spend_threshold": {
+              "n": 40,
+              "acc": 1.0
+            },
+            "dbpedia14": {
+              "n": 80,
+              "acc": 0.9875
+            },
+            "imdb": {
+              "n": 80,
+              "acc": 0.975
+            },
+            "mnli": {
+              "n": 80,
+              "acc": 0.9125
+            },
+            "sst5": {
+              "n": 80,
+              "acc": 0.6125
+            },
+            "trec": {
+              "n": 80,
+              "acc": 0.975
+            },
+            "yelp": {
+              "n": 80,
+              "acc": 0.6375
+            },
+            "yelp_yn": {
+              "n": 80,
+              "acc": 0.9375
+            }
+          }
+        },
         "mbl-s1": {
           "served_model": "mbl-s1",
           "coverage": {
@@ -2206,6 +2584,20 @@
         "ci": [
           0.08305039943609023,
           0.13109281334683712
+        ]
+      },
+      "jev_minus_clef-flash": {
+        "acc": -0.03666666666666667,
+        "ci": [
+          -0.05487394064765113,
+          -0.01754276315789474
+        ]
+      },
+      "kev4b_minus_clef-flash": {
+        "acc": -0.005833333333333334,
+        "ci": [
+          -0.02244507675448058,
+          0.012514923603849228
         ]
       }
     }

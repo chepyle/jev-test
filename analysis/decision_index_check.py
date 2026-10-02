@@ -5,8 +5,10 @@
 The index scores the same test sets (BANKING77 3,080, CLINC150+OOS 5,500) with its own
 harness and prompts. Its numbers are copied from `data/index-v0.2.1.json` of the HF Space
 `multimodalart/jev-decision-index` at revision cdbd1cab (generated 2026-09-28); Cloudflare's
-Clef post (2026-10-01) reuses them for its Jev, Kev 9B and Laya columns. Our side is
-recomputed from the prediction ledgers with a 1000-resample percentile bootstrap, seed 0.
+Clef post (2026-10-01) reuses them for its Jev, Kev 9B and Laya columns. Clef-flash is not in
+the index; its reference is Cloudflare's own run as the post reports it (BANKING77 90.93,
+CLINC150+OOS 66.77). Our side is recomputed from the prediction ledgers with a 1000-resample
+percentile bootstrap, seed 0.
 """
 
 import json
@@ -22,13 +24,16 @@ LEDGERS = {
     "jev": "results/jev-intents-test/predictions.jsonl",
     "kev-4b": "results/kev4b-intents-test/predictions.jsonl",
     "llm2jev": "results/llm2jev-intents-test/predictions.jsonl",
+    "clef-flash": "results/clef-flash-intents-test/predictions.jsonl",
 }
 # Decision Index v0.2.1 macro-F1; null where the index has no entry for that model.
 INDEX = {
     "jev": {"banking77": 0.7974, "clinc150": 0.8927},
     "kev-4b": {"banking77": 0.8224, "clinc150": 0.7936},
     "llm2jev": {"banking77": None, "clinc150": None},
+    "clef-flash": {"banking77": None, "clinc150": None},
 }
+CLOUDFLARE = {"clef-flash": {"banking77": 0.9093, "clinc150": 0.6677}}
 
 
 def macro_f1(gold: np.ndarray, pred: np.ndarray) -> float:
@@ -52,12 +57,18 @@ def main(seed: int = 0) -> dict:
                 samples.append(macro_f1(gold[idx], pred[idx]))
             ours = macro_f1(gold, pred)
             index = INDEX[name][task]
+            reported = CLOUDFLARE.get(name, {}).get(task)
             out["sources"][name][task] = {
                 "n": len(gold),
                 "macro_f1": ours,
                 "macro_f1_ci95": interval(samples),
                 "index_macro_f1": index,
                 "ours_minus_index": None if index is None else ours - index,
+                **(
+                    {"cloudflare_macro_f1": reported, "ours_minus_cloudflare": ours - reported}
+                    if reported is not None
+                    else {}
+                ),
             }
     return out
 
