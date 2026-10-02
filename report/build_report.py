@@ -28,7 +28,7 @@ PUBLISHED = {  # read from the papers' tables, see RESULTS.md
     "banking77": {"bert_full": 93.66, "bert_10shot": 83.42, "bert_30shot": 90.03},
     "clinc150": {"bert_in_scope": 96.7, "bert_oos_recall": 59.2, "best_oos_recall": 66.0},
 }
-COMMIT = "7cfafa9"
+COMMIT = "563b9cf"
 
 
 def load(path: str) -> dict:
@@ -64,6 +64,9 @@ def build() -> dict:
     kev_auc = load("analysis/paired-auc-kev4b.json")["tasks"]
     l2j = load("analysis/jev-vs-llm2jev.json")
     l2j_kev = load("analysis/kev4b-vs-llm2jev.json")["paired"]["kev4b_vs_llm2jev"]
+    cf = load("analysis/jev-vs-clef-flash.json")
+    cf_kev = load("analysis/kev4b-vs-clef-flash.json")["paired"]["kev4b_vs_clef_flash"]
+    cf_auc = load("analysis/paired-auc-clef-flash.json")["tasks"]
     tuning = load("analysis/threshold-tuning.json")["tasks"]
     intents = load("analysis/intents-test.json")["sources"]["jev"]
     src = three["sources"]
@@ -133,6 +136,29 @@ def build() -> dict:
                 "d": pct(pair["delta_micro_f1"]),
                 "ci": [pct(x) for x in pair["delta_micro_f1_ci95"]],
             }
+        m = cf["sources"]["clef_flash"][t]["metrics"]
+        row["clef_flash"] = {
+            "micro": pct(m["micro_f1"]),
+            "macro": pct(m["macro_f1"]),
+            "ci": [pct(x) for x in cf["sources"]["clef_flash"][t]["ci95"]["micro_f1"]],
+            "ece": round(m["ece"], 3),
+            **(
+                {"conf": pct(m["mean_confidence"]), "acc": pct(m["accuracy"])}
+                if "accuracy" in m
+                else {}
+            ),
+        }
+        for key, pair in (("jev", cf["paired"]["jev_vs_clef_flash"][t]), ("kev", cf_kev[t])):
+            row[f"cf_{key}"] = {
+                "d": pct(pair["delta_micro_f1"]),
+                "ci": [pct(x) for x in pair["delta_micro_f1_ci95"]],
+            }
+        if t in cf_auc:
+            a = cf_auc[t]
+            row["auc_cf"] = {
+                "d": round(a["delta"], 3),
+                "ci": [round(x, 3) for x in a["delta_ci95"]],
+            }
         vs_luna = three["paired"]["jev_vs_luna"][t]
         row["delta_luna"] = {
             "d": pct(vs_luna["delta_micro_f1"]),
@@ -152,7 +178,7 @@ def build() -> dict:
 
     means = {
         k: {"micro": mean(k, "micro"), "macro": mean(k, "macro")}
-        for k in ("jev", "jev_tuned", "luna", "bert", "kev4b", "llm2jev")
+        for k in ("jev", "jev_tuned", "luna", "bert", "kev4b", "llm2jev", "clef_flash")
     }
     expected = {
         "jev": 69.9,
@@ -161,6 +187,7 @@ def build() -> dict:
         "bert": 77.4,
         "kev4b": 62.1,
         "llm2jev": 62.2,
+        "clef_flash": 68.3,
     }
     for k, v in expected.items():  # RESULTS.md means are computed from unrounded scores
         assert abs(means[k]["micro"] - v) <= 0.1, (k, means[k]["micro"], v)
@@ -201,15 +228,30 @@ def build() -> dict:
                 "n": e["n_questions"],
                 "acc": {
                     m: round(e["models"][m]["acc"] * 100, 1)
-                    for m in ("jev", "luna", "kev4b", "llm2jev", "mbl-s1", "nli-zeroshot")
+                    for m in (
+                        "jev",
+                        "luna",
+                        "kev4b",
+                        "llm2jev",
+                        "clef-flash",
+                        "mbl-s1",
+                        "nli-zeroshot",
+                    )
                 },
                 "acc_ci": {
                     m: [round(x * 100, 1) for x in e["models"][m]["acc_ci"]]
-                    for m in ("kev4b", "llm2jev", "mbl-s1", "nli-zeroshot")
+                    for m in ("kev4b", "llm2jev", "clef-flash", "mbl-s1", "nli-zeroshot")
                 },
                 "ece": {
                     m: round(e["models"][m]["ece"], 3)
-                    for m in ("jev", "kev4b", "llm2jev", "mbl-s1")
+                    for m in ("jev", "kev4b", "llm2jev", "clef-flash", "mbl-s1")
+                },
+                **{
+                    f"cf_{short}": {
+                        "d": round(e[f"{m}_minus_clef-flash"]["acc"] * 100, 1),
+                        "ci": [round(x * 100, 1) for x in e[f"{m}_minus_clef-flash"]["ci"]],
+                    }
+                    for short, m in (("jev", "jev"), ("kev", "kev4b"))
                 },
                 **{
                     f"l2j_{short}": {
@@ -273,8 +315,10 @@ def build() -> dict:
             "kev_suites_openrouter": 0.42,
             "encoder_gpu": 2.15,  # Modal billing report for app jev-kev-encoder, see RESULTS.md
             "llm2jev_gpu": 28.84,  # Modal billing report for app jev-test-llm2jev, see RESULTS.md
+            "clef_gpu": 16.39,  # Modal billing report for app jev-test-clef-flash, see RESULTS.md
         },
         "llm2jev": llm2jev_block(),
+        "clef_flash": clef_block(intent_ledger),
         "encoder": {
             "config": load("results/kev-encoder/mbl-s1/config.json"),
             "temperature": round(
@@ -338,6 +382,84 @@ def llm2jev_block() -> dict:
         "intents": intents,
         # published: LLM2Jev's docs/jevbench.md at commit a4aafa8
         "jevbench": {"correct": bench["n_correct"], "n": bench["n_scorable"], "published": 76.2},
+    }
+
+
+def clef_block(jev_intents: dict) -> dict:
+    """Clef-flash intent results, the Cloudflare comparison and the training-split probe."""
+    jev = load("analysis/intents-jev-vs-clef-flash.json")
+    kev = load("analysis/intents-kev4b-vs-clef-flash.json")["paired"]["kev4b_vs_clef_flash"]
+    index = load("analysis/decision-index-check.json")["sources"]["clef-flash"]
+    intents = {}
+    for t in ("banking77", "clinc150"):
+        src = jev["sources"]["clef_flash"][t]
+        m = src["metrics"]
+        intents[t] = {
+            "acc": pct(m["accuracy"]),
+            "ci": [pct(x) for x in src["ci95"]["micro_f1"]],
+            "ece": round(m["ece"], 3),
+            "conf": pct(m["mean_confidence"]),
+            "macro_f1": pct(index[t]["macro_f1"]),
+            "macro_f1_ci": [pct(x) for x in index[t]["macro_f1_ci95"]],
+            "cloudflare": pct(index[t]["cloudflare_macro_f1"]),
+            **(
+                {
+                    "in_scope": pct(m["in_scope_accuracy"]),
+                    "oos_recall": pct(m["oos_recall"]),
+                    "oos_precision": pct(m["oos_precision"]),
+                }
+                if "oos_recall" in m
+                else {}
+            ),
+            **{
+                f"d_{key}": {
+                    "d": pct(pair[t]["delta_micro_f1"]),
+                    "ci": [pct(x) for x in pair[t]["delta_micro_f1_ci95"]],
+                }
+                for key, pair in (("jev", jev["paired"]["jev_vs_clef_flash"]), ("kev", kev))
+            },
+        }
+    # Jev's two largest BANKING77 confusions: how many of those queries Clef-flash gets right.
+    clef = ledger("results/clef-flash-intents-test/predictions.jsonl")
+    codes = get_task("banking77").codes
+    conventions = []
+    for gold, wrong in (
+        ("get_physical_card", "change_pin"),
+        ("order_physical_card", "get_physical_card"),
+    ):
+        ids = [
+            i
+            for i, r in jev_intents.items()
+            if r["task"] == "banking77"
+            and codes[r["gold"][0]] == gold
+            and codes[r["prediction"][0]] == wrong
+        ]
+        right = sum(clef[i]["prediction"] == clef[i]["gold"] for i in ids)
+        conventions.append({"gold": gold, "jev": wrong, "n": len(ids), "clef_right": right})
+    probe = load("analysis/clef-flash-train-probe.json")
+    rows = {
+        f"{model}/{t}": {
+            "train": pct(v["train_acc"]),
+            "train_ci": [pct(x) for x in v["train_ci95"]],
+            "test": pct(v["test_acc"]),
+            "gap": pct(v["train_minus_test"]),
+            "gap_ci": [pct(x) for x in v["train_minus_test_ci95"]],
+        }
+        for model, tasks in probe["models"].items()
+        for t, v in tasks.items()
+    }
+    did = {
+        t: {"d": pct(v["clef_gap_minus_jev_gap"]), "ci": [pct(x) for x in v["ci95"]]}
+        for t, v in probe["difference_in_differences"].items()
+    }
+    return {
+        "intents": intents,
+        "conventions": conventions,
+        "probe": {
+            "rows": rows,
+            "did": did,
+            "n": probe["models"]["clef-flash"]["banking77"]["train_n"],
+        },
     }
 
 

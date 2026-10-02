@@ -78,7 +78,7 @@ section { display: grid; gap: 18px; }
 a { color: var(--accent); }
 a:focus-visible, [tabindex]:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 16px; display: grid; gap: 6px; align-content: start; }
 .tile .label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
 .tile .value { font-size: 34px; font-weight: 600; line-height: 1.1; }
@@ -156,7 +156,7 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
   <header>
     <div class="eyebrow">Zero-shot evaluation · LexGLUE + intent detection</div>
     <h1>Jev on legal and intent classification</h1>
-    <p class="lede">TypeSafe's Jev answered every test question in LexGLUE's seven legal tasks without seeing a single training example. We compared it with GPT-5.6 Luna under the same instructions, with BERT fine-tuned on each task, with Kev-4B, an open-weight model that serves the same API, and with LLM2Jev, which serves an untrained Qwen3.5-4B through that API, then checked the pattern on two intent-detection benchmarks and on Kev's own test suites.</p>
+    <p class="lede">TypeSafe's Jev answered every test question in LexGLUE's seven legal tasks without seeing a single training example. We compared it with GPT-5.6 Luna under the same instructions, with BERT fine-tuned on each task, with Kev-4B, an open-weight model that serves the same API, with LLM2Jev, which serves an untrained Qwen3.5-4B through that API, and with Cloudflare's Clef-flash, a trained open-weight decision model, then checked the pattern on two intent-detection benchmarks and on Kev's own test suites.</p>
   </header>
 
   <section aria-labelledby="summary-h">
@@ -254,6 +254,23 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
       </div>
       <div class="table-wrap" id="table-l2j"></div>
     </div>
+    <h3>A larger trained decision model: Cloudflare's Clef-flash</h3>
+    <p id="cf-lede"></p>
+    <div class="card">
+      <div class="card-head">
+        <h3>Clef-flash against Kev-4B and Jev on every suite, paired</h3>
+        <p>LexGLUE in micro-F1, intent benchmarks and Kev's suites in accuracy, all in points. A positive difference means the other model scores higher than Clef-flash.</p>
+      </div>
+      <div class="table-wrap" id="table-cf"></div>
+    </div>
+    <p id="cf-probe-lede"></p>
+    <div class="card">
+      <div class="card-head">
+        <h3>Accuracy on training-split and test-split queries, percent</h3>
+        <p id="cf-probe-sub"></p>
+      </div>
+      <div class="table-wrap" id="table-cf-probe"></div>
+    </div>
   </section>
 
   <section aria-labelledby="intents-h">
@@ -287,6 +304,7 @@ footer { font-size: 13px; color: var(--muted); display: grid; gap: 6px; }
       <li><b>One ModernBERT run.</b> One seed, one learning rate, and development accuracy still rising after two epochs; tuning could narrow its gap on Kev's training sources, which is under a third of its gap on held-out ones. The NLI control's question-plus-option wording is not the declarative hypothesis that model expects, so its score is a floor.</li>
       <li><b>One Kev-4B serving configuration.</b> bf16 on one GPU type, one checkpoint, one run.</li>
       <li><b>One LLM2Jev configuration.</b> The base model and prompt LLM2Jev published, no calibration fit, one run. Our multi-label questions carry true and false descriptions, so its single-candidate yes/no path was not tested. SGLang's startup warmup had to be disabled to keep its scheduler alive; the answers matched a no-cache reference on 398 of 399 decisions.</li>
+      <li><b>One Clef-flash configuration, and possible training on the intent sets.</b> The release's own scoring code with our prompts (the same as Jev's), not Cloudflare's harness; context raised to 64k tokens from the release's 16k default, which would have cut 499 LexGLUE documents. Its intent scores sit far above Cloudflare's own reported ones and above fine-tuned BERT, and the training-split probe neither confirms nor rules out that it trained on these datasets.</li>
       <li><b>Possible training-data overlap.</b> Every dataset used here was public before these models were trained.</li>
     </ul>
   </section>
@@ -305,6 +323,7 @@ const MODELS = {
   bert: { name: "BERT, fine-tuned", color: "var(--bert)", shape: "triangle" },
   kev4b: { name: "Kev-4B", color: "var(--muted)", shape: "diamond" },
   llm2jev: { name: "LLM2Jev", color: "var(--muted)", shape: "diamond-ring" },
+  clef_flash: { name: "Clef-flash", color: "var(--muted)", shape: "square-ring" },
 };
 
 function el(tag, attrs = {}, parent) {
@@ -326,6 +345,7 @@ function shape(g, kind, x, y, color, size = 5) {
   if (kind === "circle") s = el("circle", { cx: x, cy: y, r: size, fill: color, stroke: "var(--surface)", "stroke-width": 2 }, g);
   else if (kind === "ring") s = el("circle", { cx: x, cy: y, r: size, fill: "var(--surface)", stroke: color, "stroke-width": 2 }, g);
   else if (kind === "square") s = el("rect", { x: x - size, y: y - size, width: size * 2, height: size * 2, rx: 1.5, fill: color, stroke: "var(--surface)", "stroke-width": 2 }, g);
+  else if (kind === "square-ring") s = el("rect", { x: x - size, y: y - size, width: size * 2, height: size * 2, rx: 1.5, fill: "var(--surface)", stroke: color, "stroke-width": 2 }, g);
   else if (kind === "diamond-ring") s = el("path", { d: `M${x},${y - size - 1.5} L${x + size + 1.5},${y} L${x},${y + size + 1.5} L${x - size - 1.5},${y} Z`, fill: "var(--surface)", stroke: color, "stroke-width": 2, "stroke-linejoin": "round" }, g);
   else if (kind === "diamond") s = el("path", { d: `M${x},${y - size - 1.5} L${x + size + 1.5},${y} L${x},${y + size + 1.5} L${x - size - 1.5},${y} Z`, fill: color, stroke: "var(--surface)", "stroke-width": 2, "stroke-linejoin": "round" }, g);
   else s = el("path", { d: `M${x},${y - size - 1} L${x + size + 1},${y + size} L${x - size - 1},${y + size} Z`, fill: color, stroke: "var(--surface)", "stroke-width": 2, "stroke-linejoin": "round" }, g);
@@ -560,10 +580,12 @@ function calTable() {
     ["CaseHOLD (5 options)", three(T.case_hold.jev.ece), three(T.case_hold.kev4b.ece), ca(K.confidence.case_hold), three(T.case_hold.llm2jev.ece), ca(T.case_hold.llm2jev)],
     ["BANKING77 (77 intents)", three(DATA.intents.banking77.ece), three(K.intents.banking77.ece), ca(K.intents.banking77), three(L.banking77.ece), ca(L.banking77)],
     ["CLINC150 (151 intents)", three(DATA.intents.clinc150.ece), three(K.intents.clinc150.ece), ca(K.intents.clinc150), three(L.clinc150.ece), ca(L.clinc150)],
-  ].concat(K.suites.filter((s) => s.key.endsWith("test")).map((s) => [`Kev suite ${s.label}`, three(s.ece.jev), three(s.ece.kev4b), "", three(s.ece.llm2jev), ""]));
-  table("table-cal", ["Task", "Jev ECE", "Kev-4B ECE", "Kev-4B mean confidence / accuracy, %", "LLM2Jev ECE", "LLM2Jev mean confidence / accuracy, %"], rows);
+  ].concat(K.suites.filter((s) => s.key.endsWith("test")).map((s) => [`Kev suite ${s.label}`, three(s.ece.jev), three(s.ece.kev4b), "", three(s.ece.llm2jev), "", three(s.ece["clef-flash"])]));
+  const CF = DATA.clef_flash.intents;
+  [T.ledgar.clef_flash.ece, T.scotus.clef_flash.ece, T.case_hold.clef_flash.ece, CF.banking77.ece, CF.clinc150.ece].forEach((x, i) => rows[i].push(three(x)));
+  table("table-cal", ["Task", "Jev ECE", "Kev-4B ECE", "Kev-4B conf. / acc., %", "LLM2Jev ECE", "LLM2Jev conf. / acc., %", "Clef-flash ECE"], rows);
   const cap = h("p"); cap.style.fontSize = "13px"; cap.style.color = "var(--muted)";
-  cap.textContent = "Expected calibration error, 10 equal-width bins; lower is better. Kev-4B's and LLM2Jev's confidence sits below their accuracy on every LexGLUE and intent task shown; LLM2Jev's, which normalizes one independent yes-probability per option, spreads thinnest on the largest label sets.";
+  cap.textContent = "Expected calibration error, 10 equal-width bins; lower is better. Conf. / acc. is mean confidence against accuracy. Kev-4B's and LLM2Jev's confidence sits below their accuracy on every LexGLUE and intent task shown; LLM2Jev's, which normalizes one independent yes-probability per option, spreads thinnest on the largest label sets. Clef-flash, trained with a Brier loss and given no temperature fit here, is the best calibrated on LEDGAR and level with Kev-4B on SCOTUS.";
   document.getElementById("table-cal").appendChild(cap);
 }
 
@@ -576,6 +598,7 @@ function summary() {
     ["bert", "BERT, fine-tuned", M.bert, `$${DATA.costs.bert_gpu.toFixed(2)} of GPU time to train`],
     ["kev4b", "Kev-4B, open weights", M.kev4b, `≤ $${DATA.costs.kev_gpu.toFixed(2)} of GPU time to serve`],
     ["llm2jev", "LLM2Jev, prompted Qwen3.5-4B", M.llm2jev, `≤ $${DATA.costs.llm2jev_gpu.toFixed(2)} of GPU time to serve`],
+    ["clef_flash", "Clef-flash, Cloudflare", M.clef_flash, `≤ $${DATA.costs.clef_gpu.toFixed(2)} of GPU time to serve`],
   ];
   const box = document.getElementById("tiles");
   tiles.forEach(([k, label, m, sub]) => {
@@ -606,6 +629,10 @@ function summary() {
     ["note", (() => {
       const S = K.suites.map((s) => s.l2j_kev.d);
       return `LLM2Jev, which serves the same 4B base family as Kev-4B with no training, ties it on LexGLUE (${fmt(M.llm2jev.micro)} vs ${fmt(M.kev4b.micro)} average micro-F1, with opposite task profiles) but trails it on every Kev suite split by ${fmt(Math.min(...S))} to ${fmt(Math.max(...S))} points, most on applying stated rules.`;
+    })()],
+    ["note", (() => {
+      const C = DATA.clef_flash.intents;
+      return `Cloudflare's Clef-flash lands between Jev and Kev-4B on LexGLUE (${fmt(M.clef_flash.micro)} average micro-F1) and ties Kev-4B on Kev's suites, but scores ${fmt(C.banking77.acc)}% on BANKING77 and ${fmt(C.clinc150.acc)}% on CLINC150, above published fine-tuned BERT. A pre-registered training-split probe could not rule out that it trained on these datasets.`;
     })()],
     ["note", `Outside law the pattern repeats: Jev trails fine-tuning on fine-grained intents (BANKING77 ${fmt(I.banking77.acc)} vs ${I.banking77.bert_full}) but finds out-of-scope requests far better (CLINC150 recall ${fmt(I.clinc150.oos_recall)} vs ${I.clinc150.bert_oos_recall}).`],
   ];
@@ -653,7 +680,8 @@ function setup() {
     ["Intent benchmarks", "BANKING77 and CLINC150 (OOS+), Jev zero-shot", `8,580 questions · $${C.intents.toFixed(2)}`],
     ["Kev-4B", "jaredpalmer/kev-4b · Kev's own server on a Modal L40S, bf16", `23,607 LexGLUE + 8,580 intent questions · ≤ $${C.kev_gpu.toFixed(2)} GPU, all Kev serving`],
     ["LLM2Jev", "Yinsongxu/LLM2Jev a4aafa8 with Qwen/Qwen3.5-4B · its own SGLang server on Modal H100s, bf16", `23,607 LexGLUE + 8,580 intent questions + Kev's suites · ≤ $${C.llm2jev_gpu.toFixed(2)} GPU, all LLM2Jev serving`],
-    ["Kev's suites", "transfer-v4 and decision-v7, dev and test, scored by Kev's own scorer", `3,908 records each for Jev, Luna, Kev-4B, LLM2Jev · $${C.kev_suites_openrouter.toFixed(2)} API`],
+    ["Clef-flash", "Cloudflare/clef-flash 17f0b0a (Qwen3.5-9B + joint schema head) · the release's own systemone() on Modal H100s, bf16, 64k context", `23,607 LexGLUE + 8,580 intent questions + Kev's suites + 2,000 training-split probe queries · ≤ $${C.clef_gpu.toFixed(2)} GPU`],
+    ["Kev's suites", "transfer-v4 and decision-v7, dev and test, scored by Kev's own scorer", `3,908 records each for Jev, Luna, Kev-4B, LLM2Jev, Clef-flash · $${C.kev_suites_openrouter.toFixed(2)} API`],
     ["ModernBERT-large, fine-tuned", "Cross-encoder on Kev's decision-v7 train split, H100 on Modal", `12,576 training records · $${C.encoder_gpu.toFixed(2)} GPU incl. zero-shot NLI control`],
   ];
   const box = document.getElementById("setup");
@@ -691,5 +719,30 @@ function l2jTable() {
   table("table-l2j", ["Suite", "LLM2Jev", "Kev-4B", "Jev", "Kev-4B − LLM2Jev", "Jev − LLM2Jev"], lex.concat(intents, suites));
 }
 
-summary(); chartA(); chartB(); why(); chartD(); chartE(); calTable(); encTable(); l2jTable(); chartC(); setup();
+function cfTable() {
+  const C = DATA.clef_flash, S = DATA.kev.suites, M = DATA.means;
+  const diff = (x) => `${fmt(x.d, true)} (${fmt(x.ci[0], true)} to ${fmt(x.ci[1], true)})`;
+  const I = C.intents;
+  document.getElementById("cf-lede").textContent =
+    `Cloudflare released Clef-flash on 1 October 2026: Qwen3.5-9B with a small trained head that scores every option of every question from one forward pass, with no text generation. We served the release's own scoring code and sent it exactly the requests Jev received. Cloudflare reports ${I.banking77.cloudflare} and ${I.clinc150.cloudflare} macro-F1 on BANKING77 and CLINC150; with our requests it scores ${fmt(I.banking77.macro_f1)} and ${fmt(I.clinc150.macro_f1)}. Its CLINC150 out-of-scope recall is ${fmt(I.clinc150.oos_recall)}% at ${fmt(I.clinc150.oos_precision)}% precision.`;
+  const lex = DATA.tasks.map((t) => [t.label, fmt(t.clef_flash.micro), fmt(t.kev4b.micro), fmt(t.jev.micro), diff(t.cf_kev), diff(t.cf_jev)]);
+  lex.push(["Mean of 7 LexGLUE tasks", fmt(M.clef_flash.micro), fmt(M.kev4b.micro), fmt(M.jev.micro), fmt(M.kev4b.micro - M.clef_flash.micro, true), fmt(M.jev.micro - M.clef_flash.micro, true)]);
+  const K = DATA.kev.intents;
+  const intents = [["BANKING77", "banking77"], ["CLINC150", "clinc150"]].map(([label, k]) =>
+    [label + (k === "banking77" ? " (Kev-4B trained on it)" : ""), fmt(I[k].acc), fmt(K[k].acc), fmt(DATA.intents[k].acc), diff(I[k].d_kev), diff(I[k].d_jev)]);
+  const suites = S.map((s) => [`Kev ${s.label}${s.held_out ? ", held out" : ", Kev's training sources"}`, fmt(s.acc["clef-flash"]), fmt(s.acc.kev4b), fmt(s.acc.jev), diff(s.cf_kev), diff(s.cf_jev)]);
+  table("table-cf", ["Suite", "Clef-flash", "Kev-4B", "Jev", "Kev-4B − Clef-flash", "Jev − Clef-flash"], lex.concat(intents, suites));
+  const conv = C.conventions.map((c) => `${c.clef_right} of ${c.n} “${c.gold.replaceAll("_", " ")}” queries that Jev reads as “${c.jev.replaceAll("_", " ")}”`).join(" and ");
+  document.getElementById("cf-probe-lede").textContent =
+    `Scores above full-data fine-tuning, from a model whose training data Cloudflare describes only as internal synthetic datasets, raise the question of whether it trained on these datasets. Clef-flash also gets right ${conv}: annotation conventions that the label names do not reveal. We tested exposure directly, with the prediction and decision rule committed before any request: a model fine-tuned on a training split scores higher on those queries than on the test split, while a model that never saw them scores the same on both.`;
+  const P = C.probe, D = P.did;
+  const row = (label, k) => { const r = P.rows[k]; return [label, `${fmt(r.train)} (${fmt(r.train_ci[0])}–${fmt(r.train_ci[1])})`, fmt(r.test), diff({ d: r.gap, ci: r.gap_ci })]; };
+  table("table-cf-probe", ["Model, dataset", `Training split (n=${P.n.toLocaleString()})`, "Test split", "Training − test"], [
+    row("Clef-flash, BANKING77", "clef-flash/banking77"), row("Jev, BANKING77", "jev/banking77"),
+    row("Clef-flash, CLINC150", "clef-flash/clinc150"), row("Jev, CLINC150", "jev/clinc150")]);
+  document.getElementById("cf-probe-sub").textContent =
+    `The pre-registered prediction, a training-split lead of at least 2 points on BANKING77, did not hold (${fmt(P.rows["clef-flash/banking77"].gap, true)}). Against Jev, whose training queries are harder, Clef-flash's relative lead is ${diff(D.banking77)} on BANKING77, which the rule counts as exposure, but Clef-flash sits near its ceiling, so that comparison overstates it; CLINC150 shows no difference, ${diff(D.clinc150)}. Training on both splits or on paraphrases would leave no gap, so exposure remains open.`;
+}
+
+summary(); chartA(); chartB(); why(); chartD(); chartE(); calTable(); encTable(); l2jTable(); cfTable(); chartC(); setup();
 </script>
