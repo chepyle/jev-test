@@ -748,3 +748,53 @@ Findings:
   multi-label requests always carry true/false criteria, so LLM2Jev's single-candidate noul
   path (raw P(yes), no normalization) was not tested; bf16 serving numerics shift a few
   decisions (1 in 399 between cache configs).
+
+## External cross-check: Decision Index v0.2.1 and Cloudflare's Clef
+
+Cloudflare's [Clef post](https://blog.cloudflare.com/clef-decision-models/) (2026-10-01)
+releases two System One-compatible decision models: Clef (frozen Qwen3.8-27B, a joint schema
+head and rank-256 LoRA) and Clef-flash (Qwen3.5-9B), trained on "internal synthetic datasets"
+with label-smoothed cross-entropy, a Brier loss and an RL objective. Its benchmark table is the
+community [Decision Index](https://huggingface.co/spaces/multimodalart/jev-decision-index)
+v0.2.1 suite, which includes our intent suite on the same test sets (BANKING77 3,080,
+CLINC150+OOS 5,500), scored by macro-F1.
+
+- Provenance (checked against `data/index-v0.2.1.json`, Space revision `cdbd1ca`, built
+  2026-09-28): the post's Jev, DiffusionGemma Jev, Kev 9B and Laya columns equal the index
+  values. The Clef columns come from Cloudflare's "internal run of the Decision Index 0.2.1
+  suite" (model card); Clef is not among the index's 70 entrants. Not reproduced here.
+- Our side: `analysis/decision_index_check.py` → `analysis/decision-index-check.json`, macro-F1
+  from the ledgers in the intent section above, 1000-resample bootstrap, seed 0.
+
+| Benchmark (macro-F1) | Jev ours [95% CI] | Jev index | Kev-4B ours [95% CI] | Kev-4B index | Kev 9B index | LLM2Jev ours | Clef (Cloudflare) | Clef-flash (Cloudflare) |
+|---|---|---:|---|---:|---:|---:|---:|---:|
+| BANKING77 | 79.8 [78.4, 80.9] | 79.7 | 83.8 [82.3, 84.8] | 82.2 | 84.8 | 67.5 | 94.2 | 90.9 |
+| CLINC150+OOS | 89.1 [88.3, 89.8] | 89.3 | 79.4 [78.1, 80.1] | 79.4 | 79.0 | 73.8 | 97.4 | 66.8 |
+
+Findings:
+
+- **Our Jev intent numbers reproduce on an independent harness**: +0.10 and −0.13 points from
+  the index, inside our intervals, from a separate harness and client. Kev-4B matches on
+  CLINC150 (−0.01); on BANKING77 ours is 1.6 points higher, just outside our interval. The
+  items are identical, so that gap is prompt wording or serving, not sampling; not tested.
+- **Clef's intent scores would close the gap to fine-tuning reported above.** BANKING77 94.2
+  macro-F1 sits beside fine-tuned BERT-large's 93.66 accuracy, CLINC150+OOS 97.4 beside BERT's
+  96.7 in-scope accuracy (different metrics; a rough comparison only). Cloudflare does not list
+  its training sources. Training on a benchmark's source lifts it: Kev-4B, trained on BANKING77,
+  leads Jev there by 3.5 accuracy points and trails by 12.1 on CLINC150, and Kev 9B's model card
+  lists `banking77` among its datasets. Whether Clef saw these sets is unknown, so its scores
+  are not evidence of zero-shot intent skill until that is ruled out.
+- **Clef-flash's CLINC150+OOS score (66.8) is 30.7 points below Clef's**, against a 3.3-point
+  gap on BANKING77. Neither the post nor the card explains it; out-of-scope handling is a
+  candidate, since that is where CLINC150 differs from BANKING77. Not tested without
+  per-item outputs.
+- **Across the card's 41 benchmarks, Clef beats Jev on 26 and trails on 15** (median +2.7
+  points; Clef-flash 24 / 16 / 1 tie, median +1.1). The post's 10-row table shows two of the
+  losses. The largest deficits are reasoning and knowledge: GPQA Diamond −30.3, BBH −19.2,
+  MMLU-Pro −16.8.
+- **The latency comparison with Jev is not like-for-like.** The post sets Clef's 209 ms median
+  against Jev's 524 ms. The index labels Jev's figure "Hosted API, network round-trip from our
+  lab ... Not comparable to the on-card single-process figures" (`methodology-v0.2.1.json`).
+  The post gives no hardware or protocol for Clef's timing.
+- **No calibration numbers.** Clef trains with a Brier loss, but neither the post nor the card
+  reports ECE or Brier. Jev's ECE on these sets is 0.089 (BANKING77) and 0.027 (CLINC150).
