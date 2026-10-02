@@ -762,7 +762,8 @@ CLINC150+OOS 5,500), scored by macro-F1.
 - Provenance (checked against `data/index-v0.2.1.json`, Space revision `cdbd1ca`, built
   2026-09-28): the post's Jev, DiffusionGemma Jev, Kev 9B and Laya columns equal the index
   values. The Clef columns come from Cloudflare's "internal run of the Decision Index 0.2.1
-  suite" (model card); Clef is not among the index's 70 entrants. Not reproduced here.
+  suite" (model card); Clef is not among the index's 70 entrants. Clef-flash is scored with
+  our requests in the next section; Clef (27B) is not run here.
 - Our side: `analysis/decision_index_check.py` → `analysis/decision-index-check.json`, macro-F1
   from the ledgers in the intent section above, 1000-resample bootstrap, seed 0.
 
@@ -798,3 +799,157 @@ Findings:
   The post gives no hardware or protocol for Clef's timing.
 - **No calibration numbers.** Clef trains with a Brier loss, but neither the post nor the card
   reports ECE or Brier. Jev's ECE on these sets is 0.089 (BANKING77) and 0.027 (CLINC150).
+
+## Sixth model: Clef-flash, Cloudflare's open-weight decision model
+
+- Model: `Cloudflare/clef-flash` at revision `17f0b0a` (Qwen3.5-9B with a joint schema head,
+  Apache-2.0, released 2026-10-01). Served by `clef_bench/modal_app.py` with the release's own
+  `systemone` function (`joint_schema_model.py`), torch 2.11.0 and transformers 5.10.2 (the
+  versions its model card was tested with) plus flash-linear-attention 0.5.2, bf16, one
+  request per forward pass, on Modal H100s (at most four containers). Runs 2026-10-02.
+- Context: `max_length` 65,536 tokens, the post's 64k. The release default (16,384) silently
+  cuts the state to fit; 499 of 23,607 LexGLUE requests (longest 26,584 tokens) exceed it.
+- Same requests as Jev: `clef_bench/run.sh` (`jev-bench run --endpoint <modal url> --model
+  clef-flash`, same instructions, label descriptions, 48,000-character truncation, 0.5
+  multi-label threshold); Kev's suites through `kev.benchmark --remote`
+  (`kev_suites/run_clef.sh`). Analyses: `clef_bench/analyze.sh`.
+- Coverage: LexGLUE 23,607 / 23,607, intents 8,580 / 8,580, Kev's suites 3,908 / 3,908 records
+  (0 rejected). Every response reports `Cloudflare/clef-flash@17f0b0a`. 16 LexGLUE requests
+  needed a second attempt; one (`unfair_tos/1479`) got no response within the 600 s client
+  timeout and succeeded on retry with a 312 ms forward pass.
+- Cost: $16.39 Modal GPU (billing report, app `jev-test-clef-flash`), including the download,
+  the kernel check, the smoke run, the training-split probe and idle scale-down. LexGLUE took
+  2.13 GPU-hours of forward passes (113.9M input tokens, median 230 ms per request,
+  CUDA-synchronized server time excluding HTTP; `timing.forward_ms` in each response).
+
+Checks before the full runs:
+
+- **Kernel path does not change answers.** flash-linear-attention against transformers' torch
+  fallback on 27 requests (3 per task from the smoke sets): 0 of 399 decisions differ, mean
+  |Δp| 0.0004, max 0.018 (`results/clef-flash/kernel-check.json`). The fla path is 2.0 to 2.7x
+  faster per request once warm; the first request at each new input shape costs about 10 s of
+  Triton autotuning.
+- **Resume**: a 350-document smoke run killed at 118 and relaunched finished with 350 unique
+  ids and no duplicates.
+- Cloudflare's own Clef-flash figures (intent macro-F1 90.93 and 66.77) come from an internal
+  run whose requests are not published, and the index's repository does not include its
+  intent adapters, so there is no published number to reproduce exactly.
+
+### LexGLUE
+
+Paired bootstrap, 1000 resamples, seed 0 (`analysis/jev-vs-clef-flash.json`,
+`analysis/kev4b-vs-clef-flash.json`); ROC-AUC from `analysis/paired-auc-clef-flash.json`.
+
+| Task | Clef-flash μ-F1 [95% CI] | Jev | Kev-4B | Jev − Clef-flash Δ μ-F1 [95% CI] | Kev-4B − Clef-flash Δ μ-F1 [95% CI] | Clef-flash m-F1 | Only Jev / only Clef-flash exact | McNemar p |
+|---|---|---:|---:|---|---|---:|---:|---:|
+| ECtHR A | 69.6 [67.2, 71.7] | 73.0 | 63.8 | +3.4 [+1.4, +5.2] | −5.8 [−7.8, −3.6] | 69.0 | 114 / 136 | 0.18 |
+| ECtHR B | 75.4 [73.6, 77.2] | 75.4 | 70.8 | −0.0 [−1.8, +1.8] | −4.7 [−6.3, −3.0] | 70.9 | 99 / 224 | 3e-12 |
+| SCOTUS | 70.6 [68.4, 72.7] | 72.6 | 59.3 | +2.0 [+0.3, +3.7] | −11.3 [−13.2, −9.4] | 62.1 | 92 / 64 | 0.03 |
+| EUR-LEX | 39.2 [38.8, 39.6] | 39.1 | 37.2 | −0.2 [−0.5, +0.2] | −2.0 [−2.4, −1.7] | 37.9 | 0 / 0 | 1 |
+| LEDGAR | 72.8 [71.9, 73.6] | 75.3 | 68.0 | +2.5 [+1.9, +3.1] | −4.8 [−5.5, −4.0] | 61.5 | 577 / 322 | 1e-17 |
+| UNFAIR-ToS | 79.7 [77.6, 81.6] | 76.4 | 69.9 | −3.3 [−4.7, −1.9] | −9.8 [−11.8, −7.9] | 56.8 | 45 / 113 | 6e-8 |
+| CaseHOLD | 70.8 [69.3, 72.2] | 77.3 | 65.5 | +6.5 [+5.3, +7.9] | −5.3 [−6.8, −3.8] | 70.8 | 400 / 165 | 2e-23 |
+| Arithmetic mean | 68.3 | 69.9 | 62.1 | | | 61.3 | | |
+| Harmonic mean | 65.0 | 66.3 | 59.4 | | | 58.8 | | |
+
+| Task | Clef-flash ECE | Jev ECE | Clef-flash mean conf. / accuracy | Macro ROC-AUC Jev − Clef-flash [95% CI] |
+|---|---:|---:|---|---|
+| ECtHR A | 0.056 | 0.082 | | +0.008 [+0.005, +0.011] |
+| ECtHR B | 0.034 | 0.096 | | +0.003 [−0.001, +0.007] |
+| SCOTUS | 0.080 | 0.148 | 0.626 / 0.706 | |
+| EUR-LEX | 0.084 | 0.099 | | +0.002 [−0.000, +0.004] |
+| LEDGAR | 0.030 | 0.116 | 0.704 / 0.728 | |
+| UNFAIR-ToS | 0.107 | 0.073 | | −0.001 [−0.003, +0.000] |
+| CaseHOLD | 0.047 | 0.038 | 0.752 / 0.708 | |
+
+### Intent detection
+
+`analysis/intents-jev-vs-clef-flash.json`, `analysis/intents-kev4b-vs-clef-flash.json`,
+`analysis/decision-index-check.json`:
+
+| Benchmark | Clef-flash [95% CI] | Jev | Kev-4B | Jev − Clef-flash [95% CI] | Kev-4B − Clef-flash [95% CI] | Clef-flash ECE / mean conf. |
+|---|---|---:|---:|---|---|---|
+| BANKING77 accuracy | 95.8 [95.1, 96.5] | 80.6 | 84.2 | −15.2 [−16.5, −13.9] | −11.7 [−12.9, −10.4] | 0.028 / 0.932 |
+| CLINC150 overall accuracy | 98.3 [97.9, 98.6] | 88.9 | 76.8 | −9.4 [−10.2, −8.6] | −21.5 [−22.6, −20.3] | 0.038 / 0.945 |
+| CLINC150 in-scope accuracy | 98.9 | 89.0 | 79.4 | | | |
+| CLINC150 out-of-scope recall / precision | 95.3 / 98.5 | 88.1 / 81.9 | 64.9 / 69.0 | | | |
+
+Macro-F1, the Decision Index metric: BANKING77 95.8 [95.1, 96.4] against Cloudflare's reported
+90.93 (+4.9); CLINC150+OOS 98.6 [98.2, 98.8] against 66.77 (+31.8).
+
+### Kev's suites
+
+Accuracy, 95% bootstrap over record groups, 1000 resamples, seed 0 (`analysis/kev-suites.md`;
+adding Clef-flash left every earlier entry of `analysis/kev-suites.json` unchanged):
+
+| Split | n | Clef-flash [95% CI] | Jev | Kev-4B | Jev − Clef-flash [95% CI] | Kev-4B − Clef-flash [95% CI] | Clef-flash ECE / Brier / wrong at ≥ 0.9 |
+|---|---:|---|---:|---:|---|---|---|
+| transfer-v4 dev | 656 | 0.838 [0.810, 0.867] | 0.855 | 0.814 | +0.017 [−0.014, +0.049] | −0.024 [−0.052, +0.003] | 0.056 / 0.244 / 0.046 |
+| transfer-v4 test | 656 | 0.849 [0.822, 0.877] | 0.877 | 0.838 | +0.027 [0.000, +0.052] | −0.011 [−0.037, +0.015] | 0.049 / 0.221 / 0.043 |
+| decision-v7 dev | 1264 | 0.885 [0.865, 0.906] | 0.845 | 0.871 | −0.040 [−0.060, −0.021] | −0.014 [−0.030, +0.001] | 0.021 / 0.169 / 0.025 |
+| decision-v7 test | 1200 | 0.872 [0.850, 0.892] | 0.835 | 0.866 | −0.037 [−0.055, −0.018] | −0.006 [−0.022, +0.013] | 0.036 / 0.187 / 0.021 |
+
+### Did Clef-flash train on BANKING77 and CLINC150? A pre-registered probe
+
+Prediction and decision rule committed before any training-split request
+(`clef_bench/PREREG-train-probe.md`, commit `4f723e1`): if Clef-flash trained on a dataset's
+training split, its accuracy on 1,000 random training queries exceeds its test accuracy (by at
+least 2 points on BANKING77); Jev is the control. `clef_bench/train_probe.py` sends the same
+requests (`jev-bench run` refuses training-split data by design);
+`analysis/clef-flash-train-probe.json`. 2,000 / 2,000 queries per model, none failed.
+Intervals: 1000 bootstrap resamples, train and test resampled independently.
+
+| Model, dataset | Train accuracy [95% CI] (n=1,000) | Test accuracy [95% CI] | Train − test [95% CI] |
+|---|---|---|---|
+| Clef-flash, BANKING77 | 96.0 [94.7, 97.2] | 95.8 [95.1, 96.6] | +0.2 [−1.3, +1.6] |
+| Clef-flash, CLINC150 | 99.3 [98.8, 99.7] | 98.3 [97.9, 98.6] | +1.0 [+0.4, +1.6] |
+| Jev, BANKING77 | 76.8 [74.2, 79.4] | 80.6 [79.4, 82.0] | −3.8 [−6.9, −1.0] |
+| Jev, CLINC150 | 89.9 [88.1, 91.7] | 88.9 [88.0, 89.7] | +1.0 [−1.0, +3.0] |
+
+Difference-in-differences (Clef-flash gap − Jev gap): BANKING77 +4.0 [+1.0, +7.2]; CLINC150
+0.0 [−2.0, +2.1].
+
+- **The prediction is refuted on the raw gap.** Clef-flash scores the same on BANKING77
+  training and test queries (+0.2), not 2 or more points higher.
+- **Under the pre-registered rule, BANKING77 reads as exposure indicated, weakly.** Jev's own
+  gap excludes zero (training queries are harder for Jev by 3.8 points; the training split is
+  not class-balanced like the test split), so the rule reads only the difference-in-differences,
+  and it excludes zero. But Clef-flash sits at 96% accuracy, where a 3.8-point difficulty drop
+  has less room to show, so the difference-in-differences overstates its relative advantage
+  by an unknown amount. CLINC150: not indicated (Clef-flash's +1.0 gap equals Jev's).
+- **The probe does not settle exposure either way.** Training on both splits, or on paraphrases
+  of them, would leave no gap. What stands without it: zero-shot-protocol scores above
+  published full-data fine-tuning (BANKING77 95.8 vs 93.66 accuracy), and correct answers on
+  the annotation conventions that label names do not reveal: all 30 BANKING77 test queries
+  filed under `get_physical_card` that Jev reads as `change_pin`, all 27
+  `order_physical_card` queries Jev reads as `get_physical_card`, and on CLINC150 all 29
+  `reminder_update` and 20 `change_user_name` queries that Jev confuses with their neighbours.
+
+Findings:
+
+- **On LexGLUE Clef-flash sits between Jev and Kev-4B**: 68.3 mean μ-F1 against Jev's 69.9 and
+  Kev-4B's 62.1. It trails Jev on CaseHOLD (−6.5), ECtHR A (−3.4), LEDGAR (−2.5) and SCOTUS
+  (−2.0), leads on UNFAIR-ToS (+3.3), and ties on ECtHR B and EUR-LEX, every interval clear of
+  zero except the ties. It beats Kev-4B on all seven tasks by 2.0 to 11.3 points. Jev ranks
+  ECtHR A labels slightly better (ROC-AUC +0.008); the other multi-label rankings tie.
+- **It is better calibrated than Jev on five of seven LexGLUE tasks with no temperature fit**,
+  most on LEDGAR (ECE 0.030 vs 0.116) and SCOTUS (0.080 vs 0.148), consistent with the Brier
+  loss in its training. It is worse on UNFAIR-ToS (0.107 vs 0.073) and slightly worse on
+  CaseHOLD (0.047 vs 0.038). Unlike LLM2Jev, its choice probabilities stay usable on 100-label
+  LEDGAR (mean confidence 0.70 at 0.73 accuracy).
+- **Intent scores are the highest of any model here, above published fine-tuned BERT, and
+  above Cloudflare's own reported numbers** by 4.9 (BANKING77) and 31.8 (CLINC150+OOS)
+  macro-F1. The probe above leaves open whether they are zero-shot; read them like Kev-4B's
+  BANKING77 result, as possibly in-distribution.
+- **On Kev's suites it ties Kev-4B on all four splits** (intervals cover zero). Against Jev it
+  is behind on held-out sources by 1.7 and 2.7 points, neither clearly (the dev interval
+  crosses zero, the test interval's lower end is 0.000), and ahead on Kev's training sources by
+  3.7 to 4.0 (intervals clear of zero), the same direction as Kev-4B.
+  The decision-v7 test lead comes mostly from sources Clef-flash may share with Kev's training
+  data: BANKING77 0.938 vs 0.738 (n=80), AG News yes/no 0.938 vs 0.844 (n=160) and the
+  return-window policy items 0.925 vs 0.600 (n=40). On held-out MMLU it scores 0.750 against
+  Jev's 0.863 (n=80), in line with the model card's deficits on knowledge benchmarks.
+- Limits: one serving configuration (bf16, fla kernels, H100, one request per forward pass), one
+  run; our prompts (the same as Jev's), not Cloudflare's harness; `max_length` raised from the
+  release default; the training-split probe is one sample of 1,000 per dataset with a
+  ceiling-limited control comparison.

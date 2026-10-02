@@ -67,6 +67,32 @@
         "index_macro_f1": null,
         "ours_minus_index": null
       }
+    },
+    "clef-flash": {
+      "banking77": {
+        "n": 3080,
+        "macro_f1": 0.9581061598652842,
+        "macro_f1_ci95": [
+          0.9505096381701627,
+          0.9643847241614475
+        ],
+        "index_macro_f1": null,
+        "ours_minus_index": null,
+        "cloudflare_macro_f1": 0.9093,
+        "ours_minus_cloudflare": 0.04880615986528425
+      },
+      "clinc150": {
+        "n": 5500,
+        "macro_f1": 0.9856488056977875,
+        "macro_f1_ci95": [
+          0.9821734714834789,
+          0.9882465433727543
+        ],
+        "index_macro_f1": null,
+        "ours_minus_index": null,
+        "cloudflare_macro_f1": 0.6677,
+        "ours_minus_cloudflare": 0.3179488056977875
+      }
     }
   }
 }
