@@ -953,3 +953,100 @@ Findings:
   run; our prompts (the same as Jev's), not Cloudflare's harness; `max_length` raised from the
   release default; the training-split probe is one sample of 1,000 per dataset with a
   ceiling-limited control comparison.
+
+## Seventh model: elephant-1, Base Labs' open-weight decision model
+
+- Model: `baselabs/elephant-1` at revision `c54a55c` (Qwen3.5-9B post-trained as a decision
+  model, MIT, ungated, released with the Base Labs / Baseten report on mammoth-1 and
+  elephant-1). Served by `elephant_bench/modal_app.py` with the model repo's own `setup.sh`
+  (OneJev `qev` runtime @81ce62f plus the repo's `serve.patch`) on the card's
+  `pytorch/pytorch:2.8.0-cuda12.8-cudnn9-devel` image, bf16, one request per forward pass, on
+  Modal H100s (at most four containers). Runs 2026-10-22.
+- Same requests as Jev: `elephant_bench/run.sh` (`jev-bench run --endpoint <modal url> --model
+  elephant-1`, same instructions, label descriptions, 48,000-character truncation, 0.5
+  multi-label threshold); Kev's suites through `kev.benchmark --remote`
+  (`kev_suites/run_elephant.sh`). Analyses: `elephant_bench/analyze.sh`.
+- Coverage: LexGLUE 23,607 / 23,607, intents 8,580 / 8,580, Kev's suites 4 splits (all
+  exited 0). Every response reports `baselabs/elephant-1@c54a55c`.
+- Context limit: the card says requests over 16,384 tokens are refused, not truncated. In a
+  50-request probe (20 spread across lengths, the 30 longest), 0 were refused, including
+  inputs up to 24,091 tokens, so the limit is not a cap on total request tokens. The full run
+  had 0 failures, so nothing was refused or dropped. We did not locate the limit's definition.
+- Cost: $18.13 Modal GPU (billing report, app `jev-test-elephant`) including the image
+  build, download, probe, smoke run and idle scale-down. Estimate before launch was $15 to
+  $45, calibrated from the 350-request smoke ($0.38 per million input tokens including cold
+  start) and Clef-flash's $16.39.
+- **Resume**: a 350-request smoke run killed at 100 and relaunched finished with 350 unique
+  ids, 0 errors, no duplicates.
+- **Kernel path not compared.** Unlike Clef-flash, no fla-versus-torch equivalence check was
+  run; the release's pinned stack (flash-linear-attention 0.5.2) is used as shipped.
+- No prediction or decision rule was registered for this model before the runs.
+
+### LexGLUE
+
+Paired bootstrap, 1000 resamples, seed 0 (`analysis/jev-vs-elephant.json`,
+`analysis/kev4b-vs-elephant.json`, `analysis/paired-auc-elephant.json`). Differences are Jev
+(or Kev-4B) minus elephant-1 in micro-F1 points.
+
+| Task | elephant-1 μ-F1 | m-F1 | Jev − elephant-1 [95% CI] | Kev-4B − elephant-1 [95% CI] | ECE elephant-1 / Jev |
+|---|---:|---:|---|---|---|
+| ECtHR A | 72.9 | 69.0 | +0.0 [−1.4, +1.5] | −9.1 [−11.1, −7.1] | 0.096 / 0.082 |
+| ECtHR B | 80.2 | 75.5 | −4.8 [−5.9, −3.7] | −9.4 [−11.0, −7.9] | 0.075 / 0.096 |
+| SCOTUS | 71.6 | 63.8 | +0.9 [−0.7, +2.5] | −12.4 [−14.2, −10.4] | 0.098 / 0.148 |
+| EUR-LEX | 40.8 | 36.1 | −1.7 [−2.1, −1.3] | −3.6 [−4.0, −3.2] | 0.092 / 0.099 |
+| LEDGAR | 76.1 | 63.7 | −0.7 [−1.3, −0.1] | −8.0 [−8.8, −7.2] | 0.094 / 0.116 |
+| UNFAIR-ToS | 73.2 | 49.7 | +3.2 [+1.8, +4.6] | −3.2 [−5.1, −1.3] | 0.051 / 0.073 |
+| CaseHOLD | 85.4 | 85.4 | −8.1 [−9.4, −6.8] | −19.9 [−21.4, −18.3] | 0.015 / 0.038 |
+| Mean of 7 | 71.5 | 63.3 | Jev 69.9 / 62.6 | Kev-4B 62.1 / 55.5 | |
+
+The mean row is the unweighted per-task average, with no interval of its own.
+
+### Intents (BANKING77 3,080, CLINC150+OOS 5,500)
+
+`analysis/intents-jev-vs-elephant.json`, `analysis/intents-kev4b-vs-elephant.json`.
+
+| Benchmark | elephant-1 macro-F1 | Jev | Kev-4B | Jev − elephant-1 μ-F1 [95% CI] | Kev-4B − elephant-1 μ-F1 [95% CI] | elephant-1 ECE |
+|---|---:|---:|---:|---|---|---:|
+| BANKING77 | 92.3 | 79.8 | 83.8 | −11.7 [−13.0, −10.4] | −8.2 [−9.4, −7.0] | 0.016 |
+| CLINC150+OOS | 96.6 | 89.1 | 79.4 | −7.1 [−7.8, −6.4] | −19.2 [−20.3, −18.1] | 0.005 |
+
+### Kev's suites (accuracy, n = 656 / 656 / 1264 / 1200)
+
+| Split | elephant-1 [95% CI] | Jev − elephant-1 [95% CI] | Kev-4B − elephant-1 [95% CI] |
+|---|---|---|---|
+| transfer-v4 dev | 0.825 [0.796, 0.857] | +0.030 [0.002, 0.060] | −0.011 [−0.049, 0.025] |
+| transfer-v4 test | 0.861 [0.832, 0.890] | +0.015 [−0.014, 0.040] | −0.023 [−0.051, 0.002] |
+| decision-v7 dev | 0.853 [0.831, 0.875] | −0.008 [−0.024, 0.008] | +0.018 [−0.001, 0.038] |
+| decision-v7 test | 0.843 [0.821, 0.862] | −0.007 [−0.026, 0.012] | +0.023 [0.003, 0.047] |
+
+Adding elephant-1 left every earlier entry of `analysis/kev-suites.json` unchanged (checked by
+comparing against `HEAD`).
+
+Findings:
+
+- **On LexGLUE elephant-1 averages above Jev**: 71.5 mean μ-F1 against Jev's 69.9, and above
+  Kev-4B on all seven tasks by 3.2 to 19.9 points (every interval clear of zero). Per task it
+  is ahead of Jev on CaseHOLD (+8.1), ECtHR B (+4.8), EUR-LEX (+1.7) and LEDGAR (+0.7), behind
+  on UNFAIR-ToS (−3.2), and tied on ECtHR A and SCOTUS (intervals cover zero). The mean has no
+  interval, so "above Jev" is a point estimate of 1.6 points supported by the per-task
+  intervals, not a tested difference.
+- **Macro-F1 orders the tasks differently**: against Jev, elephant-1 is ahead on ECtHR B
+  (+2.9 [0.2, 5.6]) and CaseHOLD (+8.1), behind on ECtHR A (−2.3 [0.0, 4.7] in Jev's favour),
+  EUR-LEX (−0.9) and UNFAIR-ToS (−4.7 [2.2, 7.0]), and tied on SCOTUS and LEDGAR. UNFAIR-ToS
+  is the one task where Jev leads on both averages.
+- **Multi-label ranking is slightly better than Jev's** on the four multi-label tasks by ROC-AUC
+  (ECtHR A +0.005 and EUR-LEX +0.013 with clear intervals; ECtHR B +0.004 and UNFAIR-ToS +0.001
+  with intervals that touch zero).
+- **Intent scores are far above Jev and Kev-4B but not above published fine-tuned BERT**:
+  BANKING77 accuracy 92.4 against BERT's 93.7, CLINC150 96.0 (all queries, including
+  out-of-scope) against BERT's 96.7 in-scope. They are below Clef-flash's (macro-F1 92.3 vs
+  95.8; 96.6 vs 98.6, unpaired point estimates). The
+  card does not list its 9.5% "public decision data" sources, so we cannot say whether these
+  sets were in training; read the scores like Clef-flash's, as possibly in-distribution. No
+  training-split probe was run for this model.
+- **On Kev's suites it is level with Kev-4B and Jev on held-out sources** (intervals cover
+  zero except Jev's transfer-v4 dev lead of 3.0 points and Kev-4B's decision-v7 test lead of
+  2.3 points).
+- Limits: one serving configuration, one run; our prompts, not Base Labs' harness (the card's
+  Decision Index 62.65 comes from that harness and is not reproduced here); the card's 16,384
+  limit was not triggered; no kernel-equivalence check.

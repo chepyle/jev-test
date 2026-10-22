@@ -25,6 +25,7 @@ LEDGERS = {
     "kev-4b": "results/kev4b-intents-test/predictions.jsonl",
     "llm2jev": "results/llm2jev-intents-test/predictions.jsonl",
     "clef-flash": "results/clef-flash-intents-test/predictions.jsonl",
+    "elephant-1": "results/elephant-intents-test/predictions.jsonl",
 }
 # Decision Index v0.2.1 macro-F1; null where the index has no entry for that model.
 INDEX = {
@@ -32,6 +33,7 @@ INDEX = {
     "kev-4b": {"banking77": 0.8224, "clinc150": 0.7936},
     "llm2jev": {"banking77": None, "clinc150": None},
     "clef-flash": {"banking77": None, "clinc150": None},
+    "elephant-1": {"banking77": None, "clinc150": None},
 }
 CLOUDFLARE = {"clef-flash": {"banking77": 0.9093, "clinc150": 0.6677}}
 
