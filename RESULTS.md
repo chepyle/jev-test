@@ -1044,9 +1044,9 @@ Findings:
   card does not list its 9.5% "public decision data" sources, so we cannot say whether these
   sets were in training; read the scores like Clef-flash's, as possibly in-distribution. No
   training-split probe was run for this model.
-- **On Kev's suites it is level with Kev-4B and Jev on held-out sources** (intervals cover
-  zero except Jev's transfer-v4 dev lead of 3.0 points and Kev-4B's decision-v7 test lead of
-  2.3 points).
+- **On Kev's suites it is within 3 points of Jev and Kev-4B on all four splits** (intervals
+  cover zero except Jev's transfer-v4 dev lead of 3.0 points and Kev-4B's decision-v7 test lead
+  of 2.3 points; decision-v7 is Kev-4B's training sources).
 - Limits: one serving configuration, one run; our prompts, not Base Labs' harness (the card's
   Decision Index 62.65 comes from that harness and is not reproduced here); the card's 16,384
   limit was not triggered; no kernel-equivalence check.

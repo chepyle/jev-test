@@ -67,6 +67,9 @@ def build() -> dict:
     cf = load("analysis/jev-vs-clef-flash.json")
     cf_kev = load("analysis/kev4b-vs-clef-flash.json")["paired"]["kev4b_vs_clef_flash"]
     cf_auc = load("analysis/paired-auc-clef-flash.json")["tasks"]
+    el = load("analysis/jev-vs-elephant.json")
+    el_kev = load("analysis/kev4b-vs-elephant.json")["paired"]["kev4b_vs_elephant"]
+    el_auc = load("analysis/paired-auc-elephant.json")["tasks"]
     tuning = load("analysis/threshold-tuning.json")["tasks"]
     intents = load("analysis/intents-test.json")["sources"]["jev"]
     src = three["sources"]
@@ -159,6 +162,24 @@ def build() -> dict:
                 "d": round(a["delta"], 3),
                 "ci": [round(x, 3) for x in a["delta_ci95"]],
             }
+        m = el["sources"]["elephant"][t]["metrics"]
+        row["elephant"] = {
+            "micro": pct(m["micro_f1"]),
+            "macro": pct(m["macro_f1"]),
+            "ci": [pct(x) for x in el["sources"]["elephant"][t]["ci95"]["micro_f1"]],
+            "ece": round(m["ece"], 3),
+        }
+        for key, pair in (("jev", el["paired"]["jev_vs_elephant"][t]), ("kev", el_kev[t])):
+            row[f"el_{key}"] = {
+                "d": pct(pair["delta_micro_f1"]),
+                "ci": [pct(x) for x in pair["delta_micro_f1_ci95"]],
+            }
+        if t in el_auc:
+            a = el_auc[t]
+            row["auc_el"] = {
+                "d": round(a["delta"], 3),
+                "ci": [round(x, 3) for x in a["delta_ci95"]],
+            }
         vs_luna = three["paired"]["jev_vs_luna"][t]
         row["delta_luna"] = {
             "d": pct(vs_luna["delta_micro_f1"]),
@@ -178,7 +199,7 @@ def build() -> dict:
 
     means = {
         k: {"micro": mean(k, "micro"), "macro": mean(k, "macro")}
-        for k in ("jev", "jev_tuned", "luna", "bert", "kev4b", "llm2jev", "clef_flash")
+        for k in ("jev", "jev_tuned", "luna", "bert", "kev4b", "llm2jev", "clef_flash", "elephant")
     }
     expected = {
         "jev": 69.9,
@@ -188,6 +209,7 @@ def build() -> dict:
         "kev4b": 62.1,
         "llm2jev": 62.2,
         "clef_flash": 68.3,
+        "elephant": 71.5,
     }
     for k, v in expected.items():  # RESULTS.md means are computed from unrounded scores
         assert abs(means[k]["micro"] - v) <= 0.1, (k, means[k]["micro"], v)
@@ -234,22 +256,30 @@ def build() -> dict:
                         "kev4b",
                         "llm2jev",
                         "clef-flash",
+                        "elephant",
                         "mbl-s1",
                         "nli-zeroshot",
                     )
                 },
                 "acc_ci": {
                     m: [round(x * 100, 1) for x in e["models"][m]["acc_ci"]]
-                    for m in ("kev4b", "llm2jev", "clef-flash", "mbl-s1", "nli-zeroshot")
+                    for m in ("kev4b", "llm2jev", "clef-flash", "elephant", "mbl-s1", "nli-zeroshot")
                 },
                 "ece": {
                     m: round(e["models"][m]["ece"], 3)
-                    for m in ("jev", "kev4b", "llm2jev", "clef-flash", "mbl-s1")
+                    for m in ("jev", "kev4b", "llm2jev", "clef-flash", "elephant", "mbl-s1")
                 },
                 **{
                     f"cf_{short}": {
                         "d": round(e[f"{m}_minus_clef-flash"]["acc"] * 100, 1),
                         "ci": [round(x * 100, 1) for x in e[f"{m}_minus_clef-flash"]["ci"]],
+                    }
+                    for short, m in (("jev", "jev"), ("kev", "kev4b"))
+                },
+                **{
+                    f"el_{short}": {
+                        "d": round(e[f"{m}_minus_elephant"]["acc"] * 100, 1),
+                        "ci": [round(x * 100, 1) for x in e[f"{m}_minus_elephant"]["ci"]],
                     }
                     for short, m in (("jev", "jev"), ("kev", "kev4b"))
                 },
@@ -316,9 +346,11 @@ def build() -> dict:
             "encoder_gpu": 2.15,  # Modal billing report for app jev-kev-encoder, see RESULTS.md
             "llm2jev_gpu": 28.84,  # Modal billing report for app jev-test-llm2jev, see RESULTS.md
             "clef_gpu": 16.39,  # Modal billing report for app jev-test-clef-flash, see RESULTS.md
+            "elephant_gpu": 18.13,  # Modal billing report for app jev-test-elephant, see RESULTS.md
         },
         "llm2jev": llm2jev_block(),
         "clef_flash": clef_block(intent_ledger),
+        "elephant": elephant_block(),
         "encoder": {
             "config": load("results/kev-encoder/mbl-s1/config.json"),
             "temperature": round(
@@ -461,6 +493,42 @@ def clef_block(jev_intents: dict) -> dict:
             "n": probe["models"]["clef-flash"]["banking77"]["train_n"],
         },
     }
+
+
+def elephant_block() -> dict:
+    """Intent results for elephant-1 (no Cloudflare-style reported figures, no training probe)."""
+    jev = load("analysis/intents-jev-vs-elephant.json")
+    kev = load("analysis/intents-kev4b-vs-elephant.json")["paired"]["kev4b_vs_elephant"]
+    index = load("analysis/decision-index-check.json")["sources"]["elephant-1"]
+    intents = {}
+    for t in ("banking77", "clinc150"):
+        src = jev["sources"]["elephant"][t]
+        m = src["metrics"]
+        intents[t] = {
+            "acc": pct(m["accuracy"]),
+            "ci": [pct(x) for x in src["ci95"]["micro_f1"]],
+            "ece": round(m["ece"], 3),
+            "conf": pct(m["mean_confidence"]),
+            "macro_f1": pct(index[t]["macro_f1"]),
+            "macro_f1_ci": [pct(x) for x in index[t]["macro_f1_ci95"]],
+            **(
+                {
+                    "in_scope": pct(m["in_scope_accuracy"]),
+                    "oos_recall": pct(m["oos_recall"]),
+                    "oos_precision": pct(m["oos_precision"]),
+                }
+                if "oos_recall" in m
+                else {}
+            ),
+            **{
+                f"d_{key}": {
+                    "d": pct(pair[t]["delta_micro_f1"]),
+                    "ci": [pct(x) for x in pair[t]["delta_micro_f1_ci95"]],
+                }
+                for key, pair in (("jev", jev["paired"]["jev_vs_elephant"]), ("kev", kev))
+            },
+        }
+    return {"intents": intents}
 
 
 def main() -> None:

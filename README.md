@@ -44,7 +44,7 @@ not rule out that it trained on those datasets. Base Labs' elephant-1 (Qwen3.5-9
 as a decision model) averages 71.5 μ-F1 on LexGLUE, 1.6 above Jev as a point estimate (ahead on
 CaseHOLD +8.1, ECtHR B +4.8, behind on UNFAIR-ToS −3.2), beats Kev-4B on all seven tasks, scores
 92.3 and 96.6 macro-F1 on BANKING77 and CLINC150 (below Clef-flash and below published fine-tuned
-BERT accuracy), and is level with Jev and Kev-4B on Kev's held-out suites. [`RESULTS.md`](RESULTS.md) has per-task
+BERT accuracy), and is within 3 points of Jev and Kev-4B on all four Kev splits. [`RESULTS.md`](RESULTS.md) has per-task
 intervals, kappa, calibration, paired tests, and caveats, including the protocol difference.
 
 ## Quick start
