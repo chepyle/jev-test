@@ -25,6 +25,7 @@ from jev_test.data import load_prepared
 from jev_test.decisions import (
     DECISIONS_ENDPOINT,
     DECISIONS_PROTOCOL_VERSION,
+    Refusal,
     build_decisions_request,
     parse_decisions_response,
 )
@@ -251,8 +252,12 @@ async def run_benchmark(
                         record.update(status="error", error=str(error))
                         if isinstance(error, InferenceError):
                             record["attempts"] = error.attempts
-                        print(f"{row['id']}: {error}. Stopping new requests.", flush=True)
-                        stopped.set()
+                        if isinstance(error, Refusal):
+                            record["refused"] = True
+                            print(f"{row['id']}: {error}. Recorded as failed.", flush=True)
+                        else:
+                            print(f"{row['id']}: {error}. Stopping new requests.", flush=True)
+                            stopped.set()
                     record["latency_seconds"] = time.monotonic() - start
                     record["completed_at"] = datetime.now(UTC).isoformat()
                     append_jsonl(ledger, record)

@@ -15,7 +15,9 @@ def test_multilabel_refusal_is_imputed_not_applied():
 
 
 def test_choice_refusal_is_error():
-    with pytest.raises(ValueError):
+    from jev_test.decisions import Refusal
+
+    with pytest.raises(Refusal):
         parse_decisions_response("ledgar", response([{"type": "refusal", "name": "label"}]), 0.5)
 
 

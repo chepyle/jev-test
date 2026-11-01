@@ -168,6 +168,13 @@ uv run jev-bench run --data data/full-test --output results/luna-full \
 multi-label tasks return a label set, so there are no probabilities and `--threshold` does not
 apply. Refusals and malformed answers are recorded as errors, never as default predictions.
 
+### OpenAI Decisions API
+
+`--protocol decisions` calls `POST https://api.openai.com/v1/decisions` (model `gpt-6-luna`,
+key from `OPENAI_API_KEY`): one `predicate` per label for multi-label tasks, one `choice` for
+single-label tasks, probabilities returned. Use `scripts/run_decisions.py` for a resumable,
+heartbeat-publishing run (`--resume` to continue). Results are in `RESULTS.md`.
+
 ## Detailed analysis
 
 ```bash

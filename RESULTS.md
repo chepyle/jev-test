@@ -1090,5 +1090,58 @@ ECtHR B 0.942 vs 0.948, EUR-LEX 0.882 vs 0.889, UNFAIR-ToS 0.982 vs 0.990.
 - Reading: at n = 50 the F1 gaps to Jev (up to 10 points on LEDGAR) are about 1 to 2 standard
   errors and the gaps to chat Luna are inside noise, so no ranking claim is made. The AUC
   gaps favour Jev by 0.005 to 0.008 on all four tasks, no intervals computed.
-- Next step if pursued: full-test run (about $13 projected, resumable) to get paired
-  intervals, McNemar and calibration. Not launched.
+- The full-test run followed (next section). Its numbers supersede this smoke.
+
+## OpenAI Decisions API (`gpt-6-luna`), full test split
+
+- Run 2026-11-01, `scripts/run_decisions.py` (wraps `--protocol decisions`, concurrency 6), one run,
+  one seed. 23,607 examples: 23,605 scored, 2 failed (both LEDGAR `choice` refusals, ledgar/3100
+  and ledgar/9064; excluded from LEDGAR's n = 9,998). Input 130.2M tokens, 0 output tokens,
+  $13.02 at $0.10 per 1M (computed; projection was $13.4). Latency p50 0.25 s, p95 0.79 s, max
+  5.4 s. Wall time about 20 min in two segments (see Resume).
+- Resume: the first segment stopped at 11,507 records on the strict parser's refusal error. The
+  parser was changed so a refused `choice` is recorded as failed and the run continues
+  (error handling only; request bodies unchanged, enforced by the per-record `request_sha256`
+  check). That edit changes the protocol hash, so `results/decisions-full/manifest.json`
+  `protocol_sha256` was re-pinned by hand (old and new hashes are in its `repins` field), then
+  `--resume` completed the other 12,101 requests. ledgar/3100 was retried once and refused again.
+- Refusals (docs do not define them; repeated calls are identical): 179 refused predicate
+  answers in 69 rows, of which 177 answers in 67 rows are UNFAIR-ToS (4.2% of its rows) and 2 are
+  ECtHR A. Refused predicates are imputed as not applied (p = 0). Sensitivity: dropping the 67
+  UNFAIR-ToS rows gives Decisions 82.1, Jev 75.8, Luna chat 78.2 micro-F1; paired Decisions minus
+  Jev +6.3 [4.6, 8.0], the same as with them, so the imputation does not drive that task.
+
+Micro-F1 with 95% bootstrap CI (1,000 resamples, seed 0) and paired comparison with Jev
+(`analysis/jev-vs-decisions-luna.json`; Δ = Decisions − Jev; McNemar on exact match). Luna chat is
+`results/luna-full`, shown unpaired here:
+
+| Task | n | Decisions μ-F1 [95% CI] | Decisions m-F1 | Jev μ-F1 | Luna chat μ-F1 | Δ μ-F1 vs Jev [95% CI] | Δ m-F1 vs Jev [95% CI] | McNemar p |
+|---|---:|---|---:|---:|---:|---|---|---:|
+| ECtHR A | 1000 | 75.8 [73.7, 77.9] | 70.4 | 73.0 | 78.9 | +2.8 [+0.9, +4.8] | −0.9 [−4.8, +3.1] | 7e-12 |
+| ECtHR B | 1000 | 80.9 [79.4, 82.4] | 76.6 | 75.4 | 78.8 | +5.5 [+4.4, +6.7] | +4.0 [+1.5, +6.7] | 1e-20 |
+| SCOTUS | 1400 | 68.1 [65.9, 70.5] | 60.4 | 72.6 | 68.3 | −4.4 [−6.2, −2.5] | −1.7 [−4.8, +1.4] | 3e-6 |
+| EUR-LEX | 5000 | 38.6 [38.3, 39.0] | 37.8 | 39.1 | 42.9 | −0.4 [−0.7, −0.2] | +0.8 [+0.3, +1.4] | n/a (0 exact) |
+| LEDGAR | 9998 | 73.8 [72.9, 74.7] | 61.2 | 75.3 | 74.7 | −1.6 [−2.1, −1.0] | −2.1 [−3.0, −1.0] | 2e-7 |
+| UNFAIR-ToS | 1607 | 82.7 [80.9, 84.6] | 56.7 | 76.4 | 78.8 | +6.3 [+4.7, +8.1] | +2.3 [−1.0, +5.6] | 2e-13 |
+| CaseHOLD | 3600 | 73.5 [72.0, 74.9] | 73.5 | 77.3 | 76.8 | −3.8 [−5.1, −2.6] | −3.8 [−5.1, −2.6] | 2e-8 |
+
+Probability quality, Decisions vs Jev (point estimates, no intervals): macro ROC-AUC ECtHR A
+0.962 vs 0.974, ECtHR B 0.944 vs 0.951, EUR-LEX 0.879 vs 0.902, UNFAIR-ToS 0.983 vs 0.992. ECE
+(10 bins) is lower for Decisions on the four multi-label tasks (0.026 vs 0.082, 0.044 vs 0.096,
+0.090 vs 0.099, 0.025 vs 0.073) and Brier is lower on three (EUR-LEX is higher, 0.0886 vs
+0.0701). On the three single-label tasks Decisions has higher ECE (SCOTUS 0.191 vs 0.148, LEDGAR
+0.168 vs 0.116; CaseHOLD 0.032 vs 0.038 is the exception) and higher Brier.
+
+- Reading: against Jev, Decisions is ahead on ECtHR A, ECtHR B and UNFAIR-ToS micro-F1 (intervals
+  exclude zero) and behind on SCOTUS, LEDGAR, CaseHOLD and EUR-LEX (the EUR-LEX gap is 0.4
+  points). Macro-F1 intervals cover zero on ECtHR A, SCOTUS and UNFAIR-ToS. Ranking quality by
+  ROC-AUC is below Jev's on every multi-label task, while the 0.5 threshold is better calibrated
+  for Decisions on the four multi-label tasks (consistent with the smoke's pattern).
+- Versus chat Luna (`gpt-5.6`, different model and protocol), the gaps are within about 4
+  points either way (Decisions ahead on UNFAIR-ToS +3.9, SCOTUS −0.2, behind on EUR-LEX −4.3);
+  no paired intervals were computed for that pair, so no ranking claim is made.
+- The smoke's Decisions-over-Jev lead on LEDGAR (+10 at n = 50) did not hold; at n = 9,998
+  Jev leads by 1.6. The smoke ordering is not predictive on LEDGAR or SCOTUS.
+- Limits: one run, one seed; Decisions is a different model from the Luna chat row; `gpt-6-luna`
+  is the only model the endpoint serves, so there is no within-endpoint comparison; Jev numbers
+  are from `results/full-test`; refusal imputation described above.

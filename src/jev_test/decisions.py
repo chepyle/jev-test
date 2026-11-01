@@ -8,7 +8,8 @@ probabilities, so thresholding, ROC-AUC, and calibration apply.
 Refusals: the API can return `{"type": "refusal", "name": ...}` for a single question; the docs
 do not say when. A refused predicate is imputed as "label not applied" with probability 0.0
 (an imputation: it biases ROC-AUC slightly and is counted from the raw responses). A refused
-choice question is an error, since no label can be inferred.
+choice question is a failed example (Refusal): no label can be inferred, and the run
+continues so the refusal rate is measured.
 """
 
 import math
@@ -19,6 +20,10 @@ from jev_test.tasks import get_task
 DECISIONS_PROTOCOL_VERSION = "lexglue-decisions-v1"
 DECISIONS_ENDPOINT = "https://api.openai.com/v1/decisions"
 DECISIONS_MODEL = "gpt-6-luna"
+
+
+class Refusal(ValueError):
+    """The API refused a choice question. Recorded as a failed example; the run continues."""
 
 
 def build_decisions_request(row: dict, model: str, max_chars: int) -> tuple[dict, dict]:
@@ -94,6 +99,8 @@ def parse_decisions_response(
     if set(answers) != {"label"}:
         raise ValueError("Expected exactly one choice answer named label")
     answer = answers["label"]
+    if answer.get("type") == "refusal":
+        raise Refusal("API refused the choice question")
     valid = {str(i) for i in range(len(task.codes))}
     if answer.get("type") != "choice" or answer.get("choice") not in valid:
         raise ValueError("Invalid choice; expected one of the supplied zero-based string keys")
