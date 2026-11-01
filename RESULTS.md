@@ -1050,3 +1050,45 @@ Findings:
 - Limits: one serving configuration, one run; our prompts, not Base Labs' harness (the card's
   Decision Index 62.65 comes from that harness and is not reproduced here); the card's 16,384
   limit was not triggered; no kernel-equivalence check.
+
+## OpenAI Decisions API (`gpt-6-luna`), smoke only
+
+- Endpoint: `POST https://api.openai.com/v1/decisions`, model `gpt-6-luna`, run 2026-11-01 as
+  `--protocol decisions` (`src/jev_test/decisions.py`). Not the same model as the
+  `openai/gpt-5.6-luna` chat row above. Same sample as `data/smoke50`: 50 per task, 7 LexGLUE
+  tasks, 350 / 350 scored, 0 failed. One run, no seeds, so every number is provisional.
+- Protocol: multi-label tasks use one `predicate` question per label, single-label tasks one
+  `choice` question with the option text as description. Instructions, truncation (48,000
+  chars) and gold isolation match the System One protocol. Probabilities are returned, so
+  ROC-AUC applies (unlike the chat row).
+- Refusals: 3 of ~8,000 predicate answers (1 row of 350, a 44-character UNFAIR-ToS sentence)
+  came back as `refusal`; repeated 3 times, identical. The docs do not define refusals. A
+  refused label is imputed as not applied with probability 0.0; a refused `choice` would be an
+  error. First attempt stopped on this row (strict parser); the run was restarted.
+- Cost and speed: 1,986,873 input tokens, 0 output tokens; $0.199 at the documented $0.10 per
+  1M uncached input tokens (computed, no cost field in the response). Latency p50 0.30 s,
+  p95 0.77 s, max 1.50 s at concurrency 8. Full-test projection: 23,607 / 350 x 1.99M tokens
+  is about 134M input tokens, about $13.4, before cache discounts.
+
+Micro-F1 / macro-F1 on the same 350 ids (Jev = `results/full-test`, Luna chat = `results/luna-full`
+restricted to these ids; n = 50 per task, so the standard error of a micro-F1 near 70 is about
+6 points):
+
+| Task | Decisions gpt-6-luna | Jev | Luna chat (gpt-5.6) |
+| --- | ---: | ---: | ---: |
+| ecthr_a | 77.9 / 70.4 | 71.7 / 63.7 | 77.9 / 71.2 |
+| ecthr_b | 80.7 / 68.1 | 72.6 / 61.3 | 82.6 / 68.9 |
+| scotus | 72.0 / 60.8 | 66.0 / 50.9 | 70.0 / 54.5 |
+| eurlex | 39.4 / 27.4 | 38.4 / 24.9 | 37.8 / 22.6 |
+| ledgar | 80.0 / 65.1 | 70.0 / 52.5 | 78.0 / 59.5 |
+| unfair_tos | 80.8 / 36.0 | 73.6 / 36.2 | 71.8 / 33.4 |
+| case_hold | 62.0 / 59.3 | 66.0 / 63.0 | 68.0 / 66.4 |
+
+Micro ROC-AUC over flattened labels, same ids (Decisions vs Jev): ECtHR A 0.979 vs 0.984,
+ECtHR B 0.942 vs 0.948, EUR-LEX 0.882 vs 0.889, UNFAIR-ToS 0.982 vs 0.990.
+
+- Reading: at n = 50 the F1 gaps to Jev (up to 10 points on LEDGAR) are about 1 to 2 standard
+  errors and the gaps to chat Luna are inside noise, so no ranking claim is made. The AUC
+  gaps favour Jev by 0.005 to 0.008 on all four tasks, no intervals computed.
+- Next step if pursued: full-test run (about $13 projected, resumable) to get paired
+  intervals, McNemar and calibration. Not launched.

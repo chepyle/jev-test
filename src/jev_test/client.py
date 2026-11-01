@@ -85,10 +85,7 @@ class SystemOneClient:
                 response = await self.http.post(
                     self.endpoint,
                     json=payload,
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "X-OpenRouter-Title": "Jev LexGLUE benchmark",
-                    },
+                    headers=self.headers(),
                 )
             except httpx.TransportError as error:
                 if attempt == self.retries:
@@ -125,6 +122,12 @@ class SystemOneClient:
             return Result(self.transform(body), attempt + 1)
         raise AssertionError("unreachable")
 
+    def headers(self) -> dict:
+        return {
+            "Authorization": f"Bearer {self.api_key}",
+            "X-OpenRouter-Title": "Jev LexGLUE benchmark",
+        }
+
     def transform(self, body: dict) -> dict:
         return body
 
@@ -134,6 +137,16 @@ class ChatClient(SystemOneClient):
 
     def __init__(self, *args, endpoint: str = CHAT_ENDPOINT, **kwargs):
         super().__init__(*args, endpoint=endpoint, **kwargs)
+
+    def transform(self, body: dict) -> dict:
+        return normalize_usage(body)
+
+
+class DecisionsClient(SystemOneClient):
+    """OpenAI Decisions API: same retry policy, OpenAI auth, usage mapped to report fields."""
+
+    def headers(self) -> dict:
+        return {"Authorization": f"Bearer {self.api_key}"}
 
     def transform(self, body: dict) -> dict:
         return normalize_usage(body)

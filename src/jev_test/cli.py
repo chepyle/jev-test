@@ -59,11 +59,12 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--dry-run", action="store_true", help="Write requests without API calls")
     run.add_argument(
         "--protocol",
-        choices=("systemone", "chat"),
+        choices=("systemone", "chat", "decisions"),
         default="systemone",
         help="systemone: typed decisions (TypeSafe models only). "
         "chat: JSON-schema chat completions, for models System One does not serve; "
-        "multi-label answers have no probabilities, so --threshold does not apply.",
+        "multi-label answers have no probabilities, so --threshold does not apply. "
+        "decisions: OpenAI POST /v1/decisions (gpt-6-luna), key from OPENAI_API_KEY.",
     )
     report = commands.add_parser(
         "report", help="Recompute metrics from an existing prediction ledger"
@@ -107,7 +108,10 @@ def main() -> None:
                     args.output,
                     model=args.model,
                     endpoint=args.endpoint,
-                    api_key=os.environ.get("OPENROUTER_API_KEY", ""),
+                    api_key=os.environ.get(
+                        "OPENAI_API_KEY" if args.protocol == "decisions" else "OPENROUTER_API_KEY",
+                        "",
+                    ),
                     threshold=args.threshold,
                     max_chars=args.max_chars,
                     concurrency=args.concurrency,

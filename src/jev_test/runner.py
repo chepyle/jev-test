@@ -17,10 +17,17 @@ from jev_test.client import (
     CHAT_ENDPOINT,
     DEFAULT_ENDPOINT,
     ChatClient,
+    DecisionsClient,
     InferenceError,
     SystemOneClient,
 )
 from jev_test.data import load_prepared
+from jev_test.decisions import (
+    DECISIONS_ENDPOINT,
+    DECISIONS_PROTOCOL_VERSION,
+    build_decisions_request,
+    parse_decisions_response,
+)
 from jev_test.questions import PROTOCOL_VERSION
 from jev_test.questions import build_request as systemone_request
 from jev_test.questions import parse_response as systemone_parse
@@ -37,6 +44,7 @@ def protocol_digest() -> str:
                 "tasks.py",
                 "questions.py",
                 "chat.py",
+                "decisions.py",
                 "client.py",
                 "metrics.py",
                 "runner.py",
@@ -63,14 +71,18 @@ async def run_benchmark(
     protocol: str = "systemone",
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> dict:
-    if protocol not in ("systemone", "chat"):
-        raise ValueError("protocol must be 'systemone' or 'chat'")
+    if protocol not in ("systemone", "chat", "decisions"):
+        raise ValueError("protocol must be 'systemone', 'chat' or 'decisions'")
     chat = protocol == "chat"
-    build_request, parse_response = (
-        (build_chat_request, parse_chat_response) if chat else (systemone_request, systemone_parse)
-    )
+    build_request, parse_response = {
+        "chat": (build_chat_request, parse_chat_response),
+        "systemone": (systemone_request, systemone_parse),
+        "decisions": (build_decisions_request, parse_decisions_response),
+    }[protocol]
     if chat and endpoint == DEFAULT_ENDPOINT:
         endpoint = CHAT_ENDPOINT
+    if protocol == "decisions" and endpoint == DEFAULT_ENDPOINT:
+        endpoint = DECISIONS_ENDPOINT
     if not math.isfinite(threshold) or not 0 <= threshold <= 1:
         raise ValueError("threshold must be finite and in [0, 1]")
     if concurrency < 1 or retries < 0 or not math.isfinite(timeout) or timeout <= 0:
@@ -80,7 +92,8 @@ async def run_benchmark(
     if dry_run and resume:
         raise ValueError("--dry-run cannot be combined with --resume")
     if not dry_run and not api_key:
-        raise ValueError("Set OPENROUTER_API_KEY, or use --dry-run to inspect requests")
+        raise ValueError("Set the API key env var (OPENAI_API_KEY for --protocol decisions, "
+                         "else OPENROUTER_API_KEY), or use --dry-run to inspect requests")
     data_manifest, examples = load_prepared(data_dir)
     # Validate truncation before creating artifacts or making any requests.
     build_request(examples[0], model, max_chars)
@@ -90,7 +103,11 @@ async def run_benchmark(
         "threshold": threshold,
         "max_chars": max_chars,
         "protocol": protocol,
-        "protocol_version": CHAT_PROTOCOL_VERSION if chat else PROTOCOL_VERSION,
+        "protocol_version": {
+            "chat": CHAT_PROTOCOL_VERSION,
+            "systemone": PROTOCOL_VERSION,
+            "decisions": DECISIONS_PROTOCOL_VERSION,
+        }[protocol],
         "protocol_sha256": protocol_digest(),
         "data_sha256": digest(data_manifest),
     }
@@ -188,7 +205,11 @@ async def run_benchmark(
         async with httpx.AsyncClient(
             timeout=timeout, transport=transport, follow_redirects=False
         ) as http:
-            factory = ChatClient if chat else SystemOneClient
+            factory = {
+                "chat": ChatClient,
+                "systemone": SystemOneClient,
+                "decisions": DecisionsClient,
+            }[protocol]
             client = factory(http, api_key, endpoint=endpoint, retries=retries)
 
             async def worker() -> None:
