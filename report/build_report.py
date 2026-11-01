@@ -70,6 +70,8 @@ def build() -> dict:
     el = load("analysis/jev-vs-elephant.json")
     el_kev = load("analysis/kev4b-vs-elephant.json")["paired"]["kev4b_vs_elephant"]
     el_auc = load("analysis/paired-auc-elephant.json")["tasks"]
+    dec = load("analysis/jev-vs-decisions-luna.json")
+    dec_chat = load("analysis/lunachat-vs-decisions.json")["paired"]["luna-chat_vs_decisions"]
     tuning = load("analysis/threshold-tuning.json")["tasks"]
     intents = load("analysis/intents-test.json")["sources"]["jev"]
     src = three["sources"]
@@ -180,6 +182,20 @@ def build() -> dict:
                 "d": round(a["delta"], 3),
                 "ci": [round(x, 3) for x in a["delta_ci95"]],
             }
+        m = dec["sources"]["decisions"][t]["metrics"]
+        row["decisions"] = {
+            "micro": pct(m["micro_f1"]),
+            "macro": pct(m["macro_f1"]),
+            "ci": [pct(x) for x in dec["sources"]["decisions"][t]["ci95"]["micro_f1"]],
+            "ece": round(m["ece"], 3),
+            "n": dec["sources"]["decisions"][t]["n"],
+        }
+        # Deltas are the other model minus Decisions (the analysis files pair a = other, b = Decisions).
+        for key, pair in (("jev", dec["paired"]["jev_vs_decisions"][t]), ("chat", dec_chat[t])):
+            row[f"dec_{key}"] = {
+                "d": pct(pair["delta_micro_f1"]),
+                "ci": [pct(x) for x in pair["delta_micro_f1_ci95"]],
+            }
         vs_luna = three["paired"]["jev_vs_luna"][t]
         row["delta_luna"] = {
             "d": pct(vs_luna["delta_micro_f1"]),
@@ -199,7 +215,7 @@ def build() -> dict:
 
     means = {
         k: {"micro": mean(k, "micro"), "macro": mean(k, "macro")}
-        for k in ("jev", "jev_tuned", "luna", "bert", "kev4b", "llm2jev", "clef_flash", "elephant")
+        for k in ("jev", "jev_tuned", "luna", "bert", "kev4b", "llm2jev", "clef_flash", "elephant", "decisions")
     }
     expected = {
         "jev": 69.9,
@@ -210,6 +226,7 @@ def build() -> dict:
         "llm2jev": 62.2,
         "clef_flash": 68.3,
         "elephant": 71.5,
+        "decisions": 70.5,
     }
     for k, v in expected.items():  # RESULTS.md means are computed from unrounded scores
         assert abs(means[k]["micro"] - v) <= 0.1, (k, means[k]["micro"], v)
@@ -346,11 +363,13 @@ def build() -> dict:
             "encoder_gpu": 2.15,  # Modal billing report for app jev-kev-encoder, see RESULTS.md
             "llm2jev_gpu": 28.84,  # Modal billing report for app jev-test-llm2jev, see RESULTS.md
             "clef_gpu": 16.39,  # Modal billing report for app jev-test-clef-flash, see RESULTS.md
+            "decisions_api": decisions_cost(),
             "elephant_gpu": 18.13,  # Modal billing report for app jev-test-elephant, see RESULTS.md
         },
         "llm2jev": llm2jev_block(),
         "clef_flash": clef_block(intent_ledger),
         "elephant": elephant_block(),
+        "decisions": decisions_block(),
         "encoder": {
             "config": load("results/kev-encoder/mbl-s1/config.json"),
             "temperature": round(
@@ -529,6 +548,43 @@ def elephant_block() -> dict:
             },
         }
     return {"intents": intents}
+
+
+def decisions_ledger() -> list[dict]:
+    return [json.loads(line) for line in (ROOT / "results/decisions-full/predictions.jsonl").open()]
+
+
+def decisions_cost() -> float:
+    """Computed from input tokens at the documented $0.10 per 1M; the API returns no cost field."""
+    tokens = sum(r["response"]["usage"]["input_tokens"] for r in decisions_ledger() if "response" in r)
+    return round(tokens * 0.10 / 1e6, 2)
+
+
+def decisions_block() -> dict:
+    """Refusal counts and run totals for the OpenAI Decisions API run."""
+    sens = load("analysis/decisions-unfair-sensitivity.json")
+    last = {r["id"]: r for r in decisions_ledger()}
+    ok = [r for r in last.values() if r["status"] == "ok"]
+    refused = collections.Counter()
+    refused_rows = collections.Counter()
+    for r in ok:
+        n = sum(a["type"] == "refusal" for a in r["response"]["answers"])
+        refused[r["task"]] += n
+        refused_rows[r["task"]] += n > 0
+    tokens = sum(r["response"]["usage"]["input_tokens"] for r in decisions_ledger() if "response" in r)
+    return {
+        "scored": len(ok),
+        "failed": len(last) - len(ok),
+        "refused_answers": sum(refused.values()),
+        "refused_rows": sum(refused_rows.values()),
+        "refused_rows_unfair": refused_rows["unfair_tos"],
+        "unfair_rows": sum(1 for r in last.values() if r["task"] == "unfair_tos"),
+        "input_tokens_m": round(tokens / 1e6, 1),
+        "unfair_sensitivity": {
+            "d": pct(sens["delta_decisions_minus_jev_kept"]),
+            "ci": [pct(x) for x in sens["delta_ci95"]],
+        },
+    }
 
 
 def main() -> None:

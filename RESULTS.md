@@ -1125,6 +1125,9 @@ Micro-F1 with 95% bootstrap CI (1,000 resamples, seed 0) and paired comparison w
 | UNFAIR-ToS | 1607 | 82.7 [80.9, 84.6] | 56.7 | 76.4 | 78.8 | +6.3 [+4.7, +8.1] | +2.3 [−1.0, +5.6] | 2e-13 |
 | CaseHOLD | 3600 | 73.5 [72.0, 74.9] | 73.5 | 77.3 | 76.8 | −3.8 [−5.1, −2.6] | −3.8 [−5.1, −2.6] | 2e-8 |
 
+Mean of the seven per-task scores (each rounded to one decimal): Decisions 70.5 micro-F1 / 62.4 macro-F1, against
+Jev 69.9 / 62.6 and chat Luna 71.3 / 63.9 (differences of means have no interval of their own).
+
 Probability quality, Decisions vs Jev (point estimates, no intervals): macro ROC-AUC ECtHR A
 0.962 vs 0.974, ECtHR B 0.944 vs 0.951, EUR-LEX 0.879 vs 0.902, UNFAIR-ToS 0.983 vs 0.992. ECE
 (10 bins) is lower for Decisions on the four multi-label tasks (0.026 vs 0.082, 0.044 vs 0.096,
@@ -1146,6 +1149,8 @@ Probability quality, Decisions vs Jev (point estimates, no intervals): macro ROC
   calibration comparison above is Jev only.
 - The smoke's Decisions-over-Jev lead on LEDGAR (+10 at n = 50) did not hold; at n = 9,998
   Jev leads by 1.6. The smoke ordering is not predictive on LEDGAR or SCOTUS.
+- UNFAIR-ToS refusal sensitivity is in `analysis/decisions-unfair-sensitivity.json`
+  (`analysis/decisions_unfair_sensitivity.py`), the source of the figures above.
 - Limits: one run, one seed; Decisions is a different model from the Luna chat row; `gpt-6-luna`
   is the only model the endpoint serves, so there is no within-endpoint comparison; Jev numbers
   are from `results/full-test`; refusal imputation described above.
