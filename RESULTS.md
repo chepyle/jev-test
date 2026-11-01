@@ -1137,9 +1137,13 @@ Probability quality, Decisions vs Jev (point estimates, no intervals): macro ROC
   points). Macro-F1 intervals cover zero on ECtHR A, SCOTUS and UNFAIR-ToS. Ranking quality by
   ROC-AUC is below Jev's on every multi-label task, while the 0.5 threshold is better calibrated
   for Decisions on the four multi-label tasks (consistent with the smoke's pattern).
-- Versus chat Luna (`gpt-5.6`, different model and protocol), the gaps are within about 4
-  points either way (Decisions ahead on UNFAIR-ToS +3.9, SCOTUS −0.2, behind on EUR-LEX −4.3);
-  no paired intervals were computed for that pair, so no ranking claim is made.
+- Versus chat Luna (`gpt-5.6`, a different model and protocol), paired on the same examples
+  (`analysis/lunachat-vs-decisions.json`; Δ = Decisions − chat, micro-F1, 95% bootstrap CI):
+  ECtHR A −3.1 [−4.8, −1.2], ECtHR B +2.2 [+0.9, +3.4], SCOTUS −0.1 [−1.9, +1.6], EUR-LEX −4.3
+  [−4.8, −3.9], LEDGAR −0.9 [−1.5, −0.3], UNFAIR-ToS +3.9 [+2.2, +5.7], CaseHOLD −3.3 [−4.7, −1.9].
+  Chat Luna leads on four tasks, Decisions on two, SCOTUS is tied. Macro-F1 deltas disagree in
+  sign with micro-F1 on UNFAIR-ToS (−4.3 [−7.6, −1.5]). Chat Luna has no probabilities, so the
+  calibration comparison above is Jev only.
 - The smoke's Decisions-over-Jev lead on LEDGAR (+10 at n = 50) did not hold; at n = 9,998
   Jev leads by 1.6. The smoke ordering is not predictive on LEDGAR or SCOTUS.
 - Limits: one run, one seed; Decisions is a different model from the Luna chat row; `gpt-6-luna`
