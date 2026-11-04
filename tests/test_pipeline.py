@@ -45,6 +45,10 @@ def test_end_to_end_all_tasks_resume_and_offline_report(prepared, tmp_path):
     run(prepared, output, handler, resume=True)
     assert len(requests) == 14
     assert write_report(output) == report
+    # report.md names the model and protocol actually run, not "Jev" and "System One" for all.
+    header = (output / "report.md").read_text().splitlines()
+    assert header[0] == f"# `{report['requested_model']}` on LexGLUE"
+    assert "Protocol: zero-shot System One;" in "\n".join(header)
     assert "test-secret" not in "".join(p.read_text() for p in output.iterdir() if p.is_file())
     with pytest.raises(ValueError, match="settings changed"):
         run(prepared, output, handler, resume=True, threshold=0.6)

@@ -24,13 +24,14 @@ Full test split (23,607 examples), zero-shot, micro-F1 arithmetic mean across th
 | LLM2Jev on Qwen3.5-4B (prompted, no training, self-served) | System One | 62.2 | 53.8 | ≤ $28.84 GPU |
 | Clef-flash (`Cloudflare/clef-flash`, open weights, self-served) | System One | 68.3 | 61.3 | ≤ $16.39 GPU |
 | elephant-1 (`baselabs/elephant-1`, open weights, self-served) | System One | 71.5 | 63.3 | ≤ $18.13 GPU |
+| OpenAI Decisions endpoint (`gpt-6-luna`), LEDGAR on 9,998 of 10,000¹ | Decisions API | 70.5 | 62.4 | $13.02 (computed) |
 | BERT-base, fine-tuned (reproduced, seed 1) | supervised | 77.4 | 69.3 | $21.58 GPU |
 
 Jev and Luna are close: Luna is ahead on ECtHR A/B, EUR-LEX, and UNFAIR-ToS, Jev on SCOTUS and
 LEDGAR, and CaseHOLD is a tie. Kev-4B, an open-weight 4B model that serves the same API, trails
 Jev on all seven tasks (1.9 to 13.3 μ-F1, every paired interval above zero); on Kev's own
-held-out suite Jev also leads it by 3.8 points, while Kev-4B leads on its training sources. Both beat fine-tuned BERT on CaseHOLD and trail it by
-13 to 29 points on EUR-LEX, LEDGAR, and UNFAIR-ToS. Choosing Jev's per-label thresholds on the
+held-out suite Jev also leads it by 3.8 points, while Kev-4B leads on its training sources. Jev and Luna both beat fine-tuned BERT on CaseHOLD and trail it
+by 13 to 29 points on EUR-LEX, LEDGAR, and UNFAIR-ToS. Choosing Jev's per-label thresholds on the
 validation split (no test data, no training examples) cuts its gap to BERT from 7.5 to 3.2 μ-F1.
 Outside law, Jev trails published fine-tuned BERT on fine-grained intents (BANKING77 80.6 vs
 93.7 accuracy; CLINC150 in-scope 89.0 vs 96.7) but finds out-of-scope requests far better
@@ -38,14 +39,22 @@ Outside law, Jev trails published fine-tuned BERT on fine-grained intents (BANKI
 with no training, ties Kev-4B on the LexGLUE mean with opposite task profiles (SCOTUS +12.4,
 ECtHR A −10.1) and trails it by 7 to 11 points on all four Kev splits, most on rule
 application. Cloudflare's Clef-flash (Qwen3.5-9B with a trained schema head) lands between Jev
-and Kev-4B on LexGLUE (68.3), ties Kev-4B on Kev's suites, and scores 95.8 on BANKING77 and
-98.3 on CLINC150, above published fine-tuned BERT; a pre-registered training-split probe could
+and Kev-4B on LexGLUE (68.3), ties Kev-4B on Kev's suites, and scores 95.8 BANKING77 accuracy and
+98.9 CLINC150 in-scope accuracy, above published fine-tuned BERT (93.66, 96.7); a pre-registered training-split probe could
 not rule out that it trained on those datasets. Base Labs' elephant-1 (Qwen3.5-9B post-trained
 as a decision model) averages 71.5 μ-F1 on LexGLUE, 1.6 above Jev as a point estimate (ahead on
 CaseHOLD +8.1, ECtHR B +4.8, behind on UNFAIR-ToS −3.2), beats Kev-4B on all seven tasks, scores
-92.3 and 96.6 macro-F1 on BANKING77 and CLINC150 (below Clef-flash and below published fine-tuned
-BERT accuracy), and is within 3 points of Jev and Kev-4B on all four Kev splits. [`RESULTS.md`](RESULTS.md) has per-task
+92.4 BANKING77 accuracy (below Clef-flash and published fine-tuned BERT) and 97.0 [96.5, 97.5]
+CLINC150 in-scope accuracy (level with published BERT's 96.7), and is within 3 points of Jev and
+Kev-4B on all four Kev splits. OpenAI's Decisions endpoint (`gpt-6-luna`, LexGLUE only) averages
+70.5 μ-F1; paired against Jev it leads on ECtHR A, ECtHR B and UNFAIR-ToS and trails on SCOTUS,
+EUR-LEX, LEDGAR and CaseHOLD, every interval clear of zero. [`RESULTS.md`](RESULTS.md) has per-task
 intervals, kappa, calibration, paired tests, and caveats, including the protocol difference.
+
+¹ The Decisions API refused two LEDGAR `choice` questions (ledgar/3100, ledgar/9064); they are
+excluded from its LEDGAR score. Counting them wrong gives 73.76 instead of 73.77 and leaves the
+mean at 70.5. Its multi-label requests omit the true/false criterion sentences that the System One
+rows send; see `RESULTS.md`.
 
 ## Quick start
 

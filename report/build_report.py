@@ -9,6 +9,7 @@ reported in RESULTS.md, so a drifted input fails loudly instead of shipping a wr
 
 import collections
 import json
+import subprocess
 from pathlib import Path
 
 from jev_test.tasks import TASK_NAMES, get_task
@@ -28,7 +29,14 @@ PUBLISHED = {  # read from the papers' tables, see RESULTS.md
     "banking77": {"bert_full": 93.66, "bert_10shot": 83.42, "bert_30shot": 90.03},
     "clinc150": {"bert_in_scope": 96.7, "bert_oos_recall": 59.2, "best_oos_recall": 66.0},
 }
-COMMIT = "563b9cf"
+# The report states which commit its inputs come from: the last commit that changed analysis/.
+COMMIT = subprocess.run(
+    ["git", "log", "-1", "--format=%h", "--", "analysis"],
+    cwd=ROOT,
+    capture_output=True,
+    text=True,
+    check=True,
+).stdout.strip()
 
 
 def load(path: str) -> dict:
@@ -190,7 +198,7 @@ def build() -> dict:
             "ece": round(m["ece"], 3),
             "n": dec["sources"]["decisions"][t]["n"],
         }
-        # Deltas are the other model minus Decisions (the analysis files pair a = other, b = Decisions).
+        # Deltas are other model minus Decisions (analysis pairs a = other, b = Decisions).
         for key, pair in (("jev", dec["paired"]["jev_vs_decisions"][t]), ("chat", dec_chat[t])):
             row[f"dec_{key}"] = {
                 "d": pct(pair["delta_micro_f1"]),
@@ -210,12 +218,41 @@ def build() -> dict:
             }
         tasks.append(row)
 
+    # Means come from the unrounded per-task metrics, matching README.md and RESULTS.md.
+    # Averaging the rounded row values instead moved elephant-1 from 71.46 to 71.44 (71.4).
+    raw = {
+        "jev": src["jev"],
+        "luna": src["luna"],
+        "bert": src["bert"],
+        "kev4b": kev["sources"]["kev4b"],
+        "llm2jev": l2j["sources"]["llm2jev"],
+        "clef_flash": cf["sources"]["clef_flash"],
+        "elephant": el["sources"]["elephant"],
+        "decisions": dec["sources"]["decisions"],
+    }
+
+    def unrounded(key: str, t: str) -> dict:
+        if key == "jev_tuned":
+            return tuning[t]["test"]["per_label"] if t in tuning else src["jev"][t]["metrics"]
+        return raw[key][t]["metrics"]
+
     def mean(key: str, metric: str) -> float:
-        return round(sum(r[key][metric] for r in tasks) / len(tasks), 1)
+        values = [unrounded(key, t)[f"{metric}_f1"] for t in TASK_NAMES]
+        return round(100 * sum(values) / len(values), 1)
 
     means = {
         k: {"micro": mean(k, "micro"), "macro": mean(k, "macro")}
-        for k in ("jev", "jev_tuned", "luna", "bert", "kev4b", "llm2jev", "clef_flash", "elephant", "decisions")
+        for k in (
+            "jev",
+            "jev_tuned",
+            "luna",
+            "bert",
+            "kev4b",
+            "llm2jev",
+            "clef_flash",
+            "elephant",
+            "decisions",
+        )
     }
     expected = {
         "jev": 69.9,
@@ -228,8 +265,8 @@ def build() -> dict:
         "elephant": 71.5,
         "decisions": 70.5,
     }
-    for k, v in expected.items():  # RESULTS.md means are computed from unrounded scores
-        assert abs(means[k]["micro"] - v) <= 0.1, (k, means[k]["micro"], v)
+    for k, v in expected.items():  # must match README.md and RESULTS.md exactly
+        assert means[k]["micro"] == v, (k, means[k]["micro"], v)
 
     jev_ledger = ledger("results/full-test/predictions.jsonl")
     intent_ledger = ledger("results/jev-intents-test/predictions.jsonl")
@@ -280,7 +317,14 @@ def build() -> dict:
                 },
                 "acc_ci": {
                     m: [round(x * 100, 1) for x in e["models"][m]["acc_ci"]]
-                    for m in ("kev4b", "llm2jev", "clef-flash", "elephant", "mbl-s1", "nli-zeroshot")
+                    for m in (
+                        "kev4b",
+                        "llm2jev",
+                        "clef-flash",
+                        "elephant",
+                        "mbl-s1",
+                        "nli-zeroshot",
+                    )
                 },
                 "ece": {
                     m: round(e["models"][m]["ece"], 3)
@@ -556,7 +600,9 @@ def decisions_ledger() -> list[dict]:
 
 def decisions_cost() -> float:
     """Computed from input tokens at the documented $0.10 per 1M; the API returns no cost field."""
-    tokens = sum(r["response"]["usage"]["input_tokens"] for r in decisions_ledger() if "response" in r)
+    tokens = sum(
+        r["response"]["usage"]["input_tokens"] for r in decisions_ledger() if "response" in r
+    )
     return round(tokens * 0.10 / 1e6, 2)
 
 
@@ -571,7 +617,9 @@ def decisions_block() -> dict:
         n = sum(a["type"] == "refusal" for a in r["response"]["answers"])
         refused[r["task"]] += n
         refused_rows[r["task"]] += n > 0
-    tokens = sum(r["response"]["usage"]["input_tokens"] for r in decisions_ledger() if "response" in r)
+    tokens = sum(
+        r["response"]["usage"]["input_tokens"] for r in decisions_ledger() if "response" in r
+    )
     return {
         "scored": len(ok),
         "failed": len(last) - len(ok),

@@ -91,7 +91,7 @@ def make_report(manifest: dict, records: list[dict]) -> dict:
     latencies = [r["latency_seconds"] for r in records]
     total_cost = sum(costs) if costs else None
     return {
-        "protocol": "zero-shot System One; no training or test-label tuning",
+        "protocol": PROTOCOL_LABELS[manifest["config"].get("protocol", "systemone")],
         "split": data["split"],
         "requested_model": manifest["config"]["model"],
         "resolved_models": models,
@@ -121,16 +121,23 @@ def make_report(manifest: dict, records: list[dict]) -> dict:
     }
 
 
+PROTOCOL_LABELS = {  # manifests written before --protocol existed are System One runs
+    "systemone": "zero-shot System One; no training or test-label tuning",
+    "chat": "zero-shot chat completions, strict JSON schema; no training or test-label tuning",
+    "decisions": "zero-shot OpenAI Decisions API; no training or test-label tuning",
+}
+
+
 def markdown(report: dict) -> str:
     lines = [
-        "# Jev on LexGLUE",
+        f"# `{report['requested_model']}` on LexGLUE",
         "",
         f"Model: `{report['requested_model']}`. Split: `{report['split']}`. "
         f"Complete: **{report['complete']}**.",
         "",
         "Resolved models: " + (", ".join(report["resolved_models"]) or "none"),
         "",
-        "Protocol: zero-shot System One classification. F1 is shown as a percentage.",
+        f"Protocol: {report['protocol']}. F1 is shown as a percentage.",
         "",
         "| Task | Scored / expected | Failed | Micro-F1 | Macro-F1 | Truncated |",
         "| --- | ---: | ---: | ---: | ---: | ---: |",

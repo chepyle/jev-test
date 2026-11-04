@@ -1037,10 +1037,14 @@ Findings:
 - **Multi-label ranking is slightly better than Jev's** on the four multi-label tasks by ROC-AUC
   (ECtHR A +0.005 and EUR-LEX +0.013 with clear intervals; ECtHR B +0.004 and UNFAIR-ToS +0.001
   with intervals that touch zero).
-- **Intent scores are far above Jev and Kev-4B but not above published fine-tuned BERT**:
-  BANKING77 accuracy 92.4 against BERT's 93.7, CLINC150 96.0 (all queries, including
-  out-of-scope) against BERT's 96.7 in-scope. They are below Clef-flash's (macro-F1 92.3 vs
-  95.8; 96.6 vs 98.6, unpaired point estimates). The
+- **Intent scores are far above Jev and Kev-4B; against published fine-tuned BERT, below on
+  BANKING77 and level on CLINC150**: BANKING77 accuracy 92.4 against BERT-large's 93.66; CLINC150
+  in-scope accuracy 97.0 [96.5, 97.5] (n = 4,500, 1,000 resamples, seed 0) against BERT's 96.7
+  in-scope, an interval that covers the published value. (An earlier version of this line
+  compared elephant-1's all-query accuracy, 96.0, with BERT's in-scope figure and concluded
+  "not above"; the metrics did not match.) The macro-F1 column in the table above is not the
+  metric of the paired deltas, which are accuracy (= micro-F1 here). Both are below
+  Clef-flash's (macro-F1 92.3 vs 95.8; 96.6 vs 98.6, unpaired point estimates). The
   card does not list its 9.5% "public decision data" sources, so we cannot say whether these
   sets were in training; read the scores like Clef-flash's, as possibly in-distribution. No
   training-split probe was run for this model.
@@ -1058,11 +1062,16 @@ Findings:
   `openai/gpt-5.6-luna` chat row above. Same sample as `data/smoke50`: 50 per task, 7 LexGLUE
   tasks, 350 / 350 scored, 0 failed. One run, no seeds, so every number is provisional.
 - Protocol: multi-label tasks use one `predicate` question per label, single-label tasks one
-  `choice` question with the option text as description. Instructions, truncation (48,000
-  chars) and gold isolation match the System One protocol. Probabilities are returned, so
+  `choice` question with the option text as description. Instructions, label descriptions,
+  truncation (48,000 chars) and gold isolation match the System One protocol. The multi-label
+  questions differ in one respect: System One `noul` questions carry a true and a false
+  criterion sentence per label (`questions.py`), and our `predicate` questions send none
+  (`decisions.py`). Any F1 or calibration gap on the four multi-label tasks includes this
+  request difference as well as the model difference. Probabilities are returned, so
   ROC-AUC applies (unlike the chat row).
 - Refusals: 3 of ~8,000 predicate answers (1 row of 350, a 44-character UNFAIR-ToS sentence)
-  came back as `refusal`; repeated 3 times, identical. The docs do not define refusals. A
+  came back as `refusal`; repeated 3 times, identical. The docs read at the time did not define
+  refusals (INFERRED; not re-checked since). A
   refused label is imputed as not applied with probability 0.0; a refused `choice` would be an
   error. First attempt stopped on this row (strict parser); the run was restarted.
 - Cost and speed: 1,986,873 input tokens, 0 output tokens; $0.199 at the documented $0.10 per
@@ -1112,24 +1121,34 @@ ECtHR B 0.942 vs 0.948, EUR-LEX 0.882 vs 0.889, UNFAIR-ToS 0.982 vs 0.990.
   Jev +6.3 [4.6, 8.0], the same as with them, so the imputation does not drive that task.
 
 Micro-F1 with 95% bootstrap CI (1,000 resamples, seed 0) and paired comparison with Jev
-(`analysis/jev-vs-decisions-luna.json`; Δ = Decisions − Jev; McNemar on exact match). Luna chat is
-`results/luna-full`, shown unpaired here:
+(`analysis/jev-vs-decisions-luna.json`; Δ = Jev − Decisions, the sign convention of every other
+model section here and of the HTML report; McNemar on exact match). Luna chat is
+`results/luna-full`, shown unpaired here. Jev's LEDGAR column is over all 10,000 documents; the
+paired Δ uses the 9,998 Decisions answered. (The first version of this table used Δ = Decisions −
+Jev, so its signs were the reverse of the report's.)
 
-| Task | n | Decisions μ-F1 [95% CI] | Decisions m-F1 | Jev μ-F1 | Luna chat μ-F1 | Δ μ-F1 vs Jev [95% CI] | Δ m-F1 vs Jev [95% CI] | McNemar p |
+| Task | n | Decisions μ-F1 [95% CI] | Decisions m-F1 | Jev μ-F1 | Luna chat μ-F1 | Jev − Decisions Δ μ-F1 [95% CI] | Δ m-F1 [95% CI] | McNemar p |
 |---|---:|---|---:|---:|---:|---|---|---:|
-| ECtHR A | 1000 | 75.8 [73.7, 77.9] | 70.4 | 73.0 | 78.9 | +2.8 [+0.9, +4.8] | −0.9 [−4.8, +3.1] | 7e-12 |
-| ECtHR B | 1000 | 80.9 [79.4, 82.4] | 76.6 | 75.4 | 78.8 | +5.5 [+4.4, +6.7] | +4.0 [+1.5, +6.7] | 1e-20 |
-| SCOTUS | 1400 | 68.1 [65.9, 70.5] | 60.4 | 72.6 | 68.3 | −4.4 [−6.2, −2.5] | −1.7 [−4.8, +1.4] | 3e-6 |
-| EUR-LEX | 5000 | 38.6 [38.3, 39.0] | 37.8 | 39.1 | 42.9 | −0.4 [−0.7, −0.2] | +0.8 [+0.3, +1.4] | n/a (0 exact) |
-| LEDGAR | 9998 | 73.8 [72.9, 74.7] | 61.2 | 75.3 | 74.7 | −1.6 [−2.1, −1.0] | −2.1 [−3.0, −1.0] | 2e-7 |
-| UNFAIR-ToS | 1607 | 82.7 [80.9, 84.6] | 56.7 | 76.4 | 78.8 | +6.3 [+4.7, +8.1] | +2.3 [−1.0, +5.6] | 2e-13 |
-| CaseHOLD | 3600 | 73.5 [72.0, 74.9] | 73.5 | 77.3 | 76.8 | −3.8 [−5.1, −2.6] | −3.8 [−5.1, −2.6] | 2e-8 |
+| ECtHR A | 1000 | 75.8 [73.7, 77.9] | 70.4 | 73.0 | 78.9 | −2.8 [−4.8, −0.9] | +0.9 [−3.1, +4.8] | 7e-12 |
+| ECtHR B | 1000 | 80.9 [79.4, 82.4] | 76.6 | 75.4 | 78.8 | −5.5 [−6.7, −4.4] | −4.0 [−6.7, −1.5] | 1e-20 |
+| SCOTUS | 1400 | 68.1 [65.9, 70.5] | 60.4 | 72.6 | 68.3 | +4.4 [+2.5, +6.2] | +1.7 [−1.4, +4.8] | 3e-6 |
+| EUR-LEX | 5000 | 38.6 [38.3, 39.0] | 37.8 | 39.1 | 42.9 | +0.4 [+0.2, +0.7] | −0.8 [−1.4, −0.3] | n/a (0 exact) |
+| LEDGAR | 9998 | 73.8 [72.9, 74.7] | 61.2 | 75.3 | 74.7 | +1.6 [+1.0, +2.1] | +2.1 [+1.0, +3.0] | 2e-7 |
+| UNFAIR-ToS | 1607 | 82.7 [80.9, 84.6] | 56.7 | 76.4 | 78.8 | −6.3 [−8.1, −4.7] | −2.3 [−5.6, +1.0] | 2e-13 |
+| CaseHOLD | 3600 | 73.5 [72.0, 74.9] | 73.5 | 77.3 | 76.8 | +3.8 [+2.6, +5.1] | +3.8 [+2.6, +5.1] | 2e-8 |
 
-Mean of the seven per-task scores (each rounded to one decimal): Decisions 70.5 micro-F1 / 62.4 macro-F1, against
-Jev 69.9 / 62.6 and chat Luna 71.3 / 63.9 (differences of means have no interval of their own).
+Mean of the seven unrounded per-task scores, as for every other model: Decisions 70.5 micro-F1 /
+62.4 macro-F1 (70.495 / 62.376), against Jev 69.9 / 62.6 and chat Luna 71.3 / 63.9 (differences of
+means have no interval of their own). `report.md` for this run withholds the aggregate because
+LEDGAR is 9,998 / 10,000; counting the two refusals as wrong gives LEDGAR 73.76 (vs 73.77) and a
+mean of 70.49, so the 70.5 shown in README and the HTML report does not depend on the exclusion.
 
-Probability quality, Decisions vs Jev (point estimates, no intervals): macro ROC-AUC ECtHR A
-0.962 vs 0.974, ECtHR B 0.944 vs 0.951, EUR-LEX 0.879 vs 0.902, UNFAIR-ToS 0.983 vs 0.992. ECE
+Probability quality, Decisions vs Jev. Macro ROC-AUC with paired bootstrap of Jev − Decisions
+(`analysis/paired-auc-decisions.json`, `analysis/paired_auc.py`, 1,000 resamples, seed 0; added
+in the 2026-11-04 audit, the first version gave point estimates only): ECtHR A 0.962 vs 0.974,
++0.012 [+0.004, +0.025]; ECtHR B 0.944 vs 0.951, +0.008 [+0.001, +0.014]; EUR-LEX 0.879 vs 0.902,
++0.022 [+0.020, +0.026]; UNFAIR-ToS 0.983 vs 0.992, +0.009 [−0.000, +0.024]. Refused UNFAIR-ToS
+labels are imputed as p = 0, which lowers Decisions' AUC there by an unknown amount. ECE
 (10 bins) is lower for Decisions on the four multi-label tasks (0.026 vs 0.082, 0.044 vs 0.096,
 0.090 vs 0.099, 0.025 vs 0.073) and Brier is lower on three (EUR-LEX is higher, 0.0886 vs
 0.0701). On the three single-label tasks Decisions has higher ECE (SCOTUS 0.191 vs 0.148, LEDGAR
@@ -1138,19 +1157,58 @@ Probability quality, Decisions vs Jev (point estimates, no intervals): macro ROC
 - Reading: against Jev, Decisions is ahead on ECtHR A, ECtHR B and UNFAIR-ToS micro-F1 (intervals
   exclude zero) and behind on SCOTUS, LEDGAR, CaseHOLD and EUR-LEX (the EUR-LEX gap is 0.4
   points). Macro-F1 intervals cover zero on ECtHR A, SCOTUS and UNFAIR-ToS. Ranking quality by
-  ROC-AUC is below Jev's on every multi-label task, while the 0.5 threshold is better calibrated
-  for Decisions on the four multi-label tasks (consistent with the smoke's pattern).
+  macro ROC-AUC is below Jev's on ECtHR A, ECtHR B and EUR-LEX (intervals exclude zero); on
+  UNFAIR-ToS the interval reaches zero. Decisions' probabilities have lower ECE than Jev's on the
+  four multi-label tasks (ECE does not depend on the 0.5 cut-off). The smoke quoted micro
+  ROC-AUC on 50 examples per task, so it is not a like-for-like check of these macro figures.
 - Versus chat Luna (`gpt-5.6`, a different model and protocol), paired on the same examples
-  (`analysis/lunachat-vs-decisions.json`; Δ = Decisions − chat, micro-F1, 95% bootstrap CI):
-  ECtHR A −3.1 [−4.8, −1.2], ECtHR B +2.2 [+0.9, +3.4], SCOTUS −0.1 [−1.9, +1.6], EUR-LEX −4.3
-  [−4.8, −3.9], LEDGAR −0.9 [−1.5, −0.3], UNFAIR-ToS +3.9 [+2.2, +5.7], CaseHOLD −3.3 [−4.7, −1.9].
+  (`analysis/lunachat-vs-decisions.json`; Δ = chat − Decisions, micro-F1, 95% bootstrap CI):
+  ECtHR A +3.1 [+1.2, +4.8], ECtHR B −2.2 [−3.4, −0.9], SCOTUS +0.1 [−1.6, +1.9], EUR-LEX +4.3
+  [+3.9, +4.8], LEDGAR +0.9 [+0.3, +1.5], UNFAIR-ToS −3.9 [−5.7, −2.2], CaseHOLD +3.3 [+1.9, +4.7].
   Chat Luna leads on four tasks, Decisions on two, SCOTUS is tied. Macro-F1 deltas disagree in
-  sign with micro-F1 on UNFAIR-ToS (−4.3 [−7.6, −1.5]). Chat Luna has no probabilities, so the
+  sign with micro-F1 on UNFAIR-ToS (+4.3 [+1.5, +7.6]). Chat Luna has no probabilities, so the
   calibration comparison above is Jev only.
 - The smoke's Decisions-over-Jev lead on LEDGAR (+10 at n = 50) did not hold; at n = 9,998
   Jev leads by 1.6. The smoke ordering is not predictive on LEDGAR or SCOTUS.
 - UNFAIR-ToS refusal sensitivity is in `analysis/decisions-unfair-sensitivity.json`
   (`analysis/decisions_unfair_sensitivity.py`), the source of the figures above.
 - Limits: one run, one seed; Decisions is a different model from the Luna chat row; `gpt-6-luna`
-  is the only model the endpoint serves, so there is no within-endpoint comparison; Jev numbers
-  are from `results/full-test`; refusal imputation described above.
+  is the only model the endpoint serves (INFERRED from the docs at run time), so there is no
+  within-endpoint comparison; Jev numbers are from `results/full-test` (0.5 threshold, untuned,
+  like Decisions); refusal imputation described above; multi-label requests omit the true/false
+  criterion sentences System One models receive (see the smoke section); no prediction or
+  decision rule was committed before the full run, unlike the Clef-flash probe, so these
+  results are exploratory.
+
+## Audit 2026-11-04: reporting and method errors in the elephant-1 and Decisions commits
+
+A review of the eight commits since 2026-10-21 (`3a9e91d`..`3b793ad`) against the earlier
+sections found the following. Headline per-task numbers did not change; README's results table
+is identical across all 14 versions for the models it already listed. The errors were in how
+results were averaged, signed, compared and described.
+
+| # | Where | Error | Fix |
+|---|---|---|---|
+| 1 | `report/build_report.py` since `5d11864` | Means averaged per-task scores already rounded to one decimal; elephant-1 showed 71.4 in the report and 71.5 in README/RESULTS (unrounded 71.456 vs 71.443). The check allowed ±0.1, so it passed. | Means from unrounded metrics; the check is now exact equality. |
+| 2 | Report footer since `5d11864` | "results as of commit 563b9cf" was hard-coded and two model sections out of date. | Stamp is the last commit that changed `analysis/`. |
+| 3 | RESULTS, Decisions section | Δ = Decisions − Jev, the reverse of every other section and of the report's "Jev − Decisions" column; the same numbers appeared with opposite signs. | Δ = Jev − Decisions (and chat − Decisions). |
+| 4 | RESULTS, README, report | "Same instructions and label descriptions as Jev" for Decisions; the multi-label `predicate` requests omit the true/false criterion sentences System One `noul` questions send. | Stated as a request difference in each place. |
+| 5 | RESULTS, report | "At the 0.5 threshold its calibration error is lower"; ECE does not depend on the cut-off. | Reworded. |
+| 6 | RESULTS, Decisions | Multi-label ROC-AUC given as point estimates with "no intervals", while every other model has paired intervals from `analysis/paired_auc.py`; the smoke section quotes micro AUC and the full section macro AUC, then calls them "consistent". | Paired macro AUC with intervals (`analysis/paired-auc-decisions.json`): Jev ahead on ECtHR A, ECtHR B, EUR-LEX; UNFAIR-ToS interval reaches zero, so "below Jev on every multi-label task" was one task too strong. |
+| 7 | Report, README | Decisions mean shown although its own `report.md` withholds the aggregate (LEDGAR 9,998 / 10,000). | Shown with the exclusion stated; counting the two refusals wrong gives 70.49, same at one decimal. |
+| 8 | RESULTS, README, report (elephant-1) | CLINC150 all-query accuracy 96.0 compared with BERT's in-scope 96.7 to conclude "not above"; on the matching metric elephant-1 is 97.0 [96.5, 97.5], level. README called 92.3 / 96.6 macro-F1 "below published BERT accuracy". | Compared on in-scope accuracy; README quotes accuracy. |
+| 9 | README | Decisions missing from the results table and summary; "Both beat fine-tuned BERT on CaseHOLD" read as Jev and Kev-4B (Kev-4B 65.5 < BERT 70.8). | Row and sentence added; subject named. |
+| 10 | `src/jev_test/report.py` | Every `report.md` was titled "Jev on LexGLUE" with protocol "System One", including Luna (chat) and Decisions runs. | Title is the requested model; protocol from the manifest. |
+| 11 | `scripts/run_decisions.py` | Heartbeat counted ledger lines (23,608 / 23,607 after one retry); `resume_cmd` doubled `--resume`; two deterministic refusals left the job FAILED with no way to complete. | Counts unique ids; explicit `resume_cmd`; refusal-only runs end as done with an incident line. |
+
+Not fixed, recorded here:
+
+- No prediction or decision rule was committed before the elephant-1 or Decisions runs, unlike
+  the Clef-flash probe (`4f723e1`). Their comparisons are exploratory.
+- The Decisions protocol hash was re-pinned by hand mid-run (documented in the section above and
+  in the manifest's `repins`); per-record request hashes confirm the request bodies did not change.
+- The opening tables of this file use published BERT means and 300 bootstrap resamples; the report
+  uses the reproduced BERT and 1,000 resamples, so the two give slightly different Jev intervals
+  (ECtHR A lower bound 71.2 here, 71.0 in the report).
+- "The docs do not define refusals" and "the only model the endpoint serves" are claims about
+  OpenAI's documentation that were not re-checked in this audit (INFERRED).

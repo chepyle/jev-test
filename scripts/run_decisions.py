@@ -7,10 +7,10 @@ Resume with the same command plus --resume.
 
 import argparse
 import asyncio
+import json
 import os
 import sys
 import threading
-import time
 from pathlib import Path
 
 sys.path.insert(0, "/home/jake/.claude/skills/longrun")
@@ -30,15 +30,27 @@ args = p.parse_args()
 ledger = args.output / "predictions.jsonl"
 
 
-def count() -> int:
+def last_records() -> dict:
+    """Latest ledger record per example id (a retried example appears more than once)."""
     try:
-        with ledger.open("rb") as handle:
-            return sum(1 for _ in handle)
-    except OSError:
-        return 0
+        with ledger.open() as handle:
+            return {r["id"]: r for r in map(json.loads, filter(str.strip, handle))}
+    except (OSError, ValueError):
+        return {}
 
 
-with Job(args.job_id, total=args.total, stall_seconds=300) as job:
+def count() -> int:
+    # Unique examples, not ledger lines: counting lines reported 23,608 / 23,607 after one retry.
+    return len(last_records())
+
+
+argv = [a for a in sys.argv if a != "--resume"]
+with Job(
+    args.job_id,
+    total=args.total,
+    stall_seconds=300,
+    resume_cmd=" ".join(argv + ["--resume"]),  # the default appended a second --resume
+) as job:
     stop = threading.Event()
 
     def beats() -> None:
@@ -64,5 +76,13 @@ with Job(args.job_id, total=args.total, stall_seconds=300) as job:
     stop.set()
     job.beat(count())
     if not result["complete"]:
-        job.incident("run incomplete: see report")
-        raise SystemExit(2)
+        failed = [r for r in last_records().values() if r["status"] != "ok"]
+        if failed and all(r.get("refused") for r in failed):
+            # Refusals repeat identically on retry, so resuming cannot complete the run.
+            ids = ", ".join(sorted(r["id"] for r in failed))
+            job.incident(
+                f"done with {len(failed)} deterministic refusals recorded as failed: {ids}"
+            )
+        else:
+            job.incident("run incomplete: see report")
+            raise SystemExit(2)
