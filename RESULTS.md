@@ -1114,6 +1114,11 @@ ECtHR B 0.942 vs 0.948, EUR-LEX 0.882 vs 0.889, UNFAIR-ToS 0.982 vs 0.990.
   check). That edit changes the protocol hash, so `results/decisions-full/manifest.json`
   `protocol_sha256` was re-pinned by hand (old and new hashes are in its `repins` field), then
   `--resume` completed the other 12,101 requests. ledgar/3100 was retried once and refused again.
+- Second resume 2026-11-05 with the fixed launcher: re-sent only the 2 failed requests; both
+  refused again (ledgar/3100 for the third time, ledgar/9064 for the second) and the job closed as
+  done. `metrics.csv` is byte-identical to the pre-resume copy; input tokens rose by 32. Peak RSS
+  2.05 GiB (`/usr/bin/time -v`); a first attempt under an unmeasured 2 GiB cap was OOM-killed
+  after 13 s with no ledger writes.
 - Refusals (docs do not define them; repeated calls are identical): 179 refused predicate
   answers in 69 rows, of which 177 answers in 67 rows are UNFAIR-ToS (4.2% of its rows) and 2 are
   ECtHR A. Refused predicates are imputed as not applied (p = 0). Sensitivity: dropping the 67
@@ -1173,7 +1178,8 @@ labels are imputed as p = 0, which lowers Decisions' AUC there by an unknown amo
 - UNFAIR-ToS refusal sensitivity is in `analysis/decisions-unfair-sensitivity.json`
   (`analysis/decisions_unfair_sensitivity.py`), the source of the figures above.
 - Limits: one run, one seed; Decisions is a different model from the Luna chat row; `gpt-6-luna`
-  is the only model the endpoint serves (INFERRED from the docs at run time), so there is no
+  is the confirmed Decisions model (repo owner, 2026-11-05; all 23,610 ledger responses report
+  `model: gpt-6-luna`, VERIFIED), and no other endpoint model was run, so there is no
   within-endpoint comparison; Jev numbers are from `results/full-test` (0.5 threshold, untuned,
   like Decisions); refusal imputation described above; multi-label requests omit the true/false
   criterion sentences System One models receive (see the smoke section); no prediction or
@@ -1210,5 +1216,7 @@ Not fixed, recorded here:
 - The opening tables of this file use published BERT means and 300 bootstrap resamples; the report
   uses the reproduced BERT and 1,000 resamples, so the two give slightly different Jev intervals
   (ECtHR A lower bound 71.2 here, 71.0 in the report).
-- "The docs do not define refusals" and "the only model the endpoint serves" are claims about
-  OpenAI's documentation that were not re-checked in this audit (INFERRED).
+- "The docs do not define refusals" is a claim about OpenAI's documentation that was not
+  re-checked in this audit (INFERRED). The earlier "only model the endpoint serves" claim was
+  replaced: the repo owner confirmed `gpt-6-luna` as the Decisions model on 2026-11-05, and every
+  ledger response reports it (VERIFIED).
