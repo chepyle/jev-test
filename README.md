@@ -11,6 +11,12 @@ example becomes one request containing an independent **noul** (yes/no probabili
 question per label. No chat completions, output-format prompting, or generated-text parsing
 are involved.
 
+The same frozen examples are also scored on two intent-detection tasks (BANKING77, CLINC150)
+and against other models through three more routes: self-served open-weight models behind the
+same System One API (Kev-4B, LLM2Jev, Clef-flash, elephant-1), chat completions with a JSON
+schema (GPT-5.6 Luna), and OpenAI's Decisions API (`gpt-6-luna`). Each route is documented
+below; `report/findings.html` collects the comparison.
+
 ## Results
 
 Full test split (23,607 examples), zero-shot, micro-F1 arithmetic mean across the 7 tasks:
@@ -115,6 +121,8 @@ before running the complete benchmark. No hard spending cap is imposed by this c
 | `ledgar` | Main contract provision topic | 100 | 10,000 |
 | `unfair_tos` | Potentially unfair terms categories | 8 | 1,607 |
 | `case_hold` | Correct holding among five candidates | 5 | 3,600 |
+| `banking77` | Banking customer intent (not LexGLUE) | 77 | 3,080 |
+| `clinc150` | Intent, including out-of-scope (not LexGLUE) | 151 | 5,500 |
 
 Counts and zero-based label order follow the actual
 [pinned Hugging Face dataset](https://huggingface.co/datasets/coastalcph/lex_glue/tree/c23fdff1a6bf74e0e1a71cb86f1e781d37da888c).
@@ -130,7 +138,11 @@ CaseHOLD uses the five provided holding statements as its choice criteria.
 uv run jev-bench tasks
 uv run jev-bench prepare --tasks scotus case_hold --limit 100 --seed 7 --output data/subset
 uv run jev-bench prepare --tasks unfair_tos --split validation --limit 0 --output data/dev
+uv run jev-bench prepare --tasks banking77 clinc150 --limit 0 --output data/intents-test
 ```
+
+`--tasks all` means the seven LexGLUE tasks; the intent tasks are always named explicitly and
+never enter the LexGLUE aggregate.
 
 ## Evaluation protocol
 
@@ -165,7 +177,9 @@ the run settings, truncation counts, and model IDs alongside any accuracy compar
 
 ## Other models (chat protocol)
 
-System One serves TypeSafe models only. To score another OpenRouter model on the same examples:
+OpenRouter's System One endpoint serves TypeSafe models only. Open-weight models that serve the
+same API are self-hosted (see Kev's suites, LLM2Jev, and Clef-flash and elephant-1 below) and
+take `--endpoint`. To score another OpenRouter model on the same examples:
 
 ```bash
 uv run jev-bench run --data data/full-test --output results/luna-full \
@@ -181,8 +195,19 @@ apply. Refusals and malformed answers are recorded as errors, never as default p
 
 `--protocol decisions` calls `POST https://api.openai.com/v1/decisions` (model `gpt-6-luna`,
 key from `OPENAI_API_KEY`): one `predicate` per label for multi-label tasks, one `choice` for
-single-label tasks, probabilities returned. Use `scripts/run_decisions.py` for a resumable,
-heartbeat-publishing run (`--resume` to continue). Results are in `RESULTS.md`.
+single-label tasks, probabilities returned. Predicate questions carry no true/false criterion
+sentences, unlike System One `noul` questions, so multi-label comparisons include that request
+difference. A refused `choice` is recorded as a failed example; a refused `predicate` is imputed
+as not applied (p = 0). Use `scripts/run_decisions.py` for a resumable, heartbeat-publishing run:
+
+```bash
+uv run scripts/run_decisions.py --job-id decisions-full --data data/full-test \
+  --output results/decisions-full --total 23607 --concurrency 6   # add --resume to continue
+```
+
+`--resume` re-sends only unfinished and failed examples. A run whose only failures are refusals
+closes as done (refusals repeat on retry) and its report withholds the aggregate. The full run
+peaked at 2.05 GiB RSS. Results are in `RESULTS.md`.
 
 ## Detailed analysis
 
@@ -253,7 +278,8 @@ it, so it should not be interpreted as isolated model inference latency.
 [Kev](https://github.com/jaredpalmer/kev) is an open-weight model family that serves the System
 One API. Kev-4B is served on Modal with Kev's own deploy script and scored on LexGLUE and the
 intent suite with the same `jev-bench run` requests as Jev. `kev_suites/` scores Jev, GPT-5.6
-Luna and Kev-4B on Kev's frozen `transfer-v4` and `decision-v7` suites with Kev's own scorer.
+Luna and Kev-4B on Kev's frozen `transfer-v4` and `decision-v7` suites with Kev's own scorer,
+and holds the matching scripts for the encoder, LLM2Jev, Clef-flash and elephant-1 (below).
 Kev is cloned at a pinned commit into the git-ignored `third_party/`. Luna goes through
 `jev_test.chatshim`, a local System One endpoint backed by chat JSON, which caches answers so a
 rerun makes no new calls. Results in [`RESULTS.md`](RESULTS.md).
@@ -323,6 +349,36 @@ LLM2JEV_URL=$LLM2JEV_URL kev_suites/run_llm2jev.sh
 llm2jev_bench/analyze.sh
 ```
 
+### Clef-flash and elephant-1: open-weight decision models on Modal
+
+`clef_bench/modal_app.py` serves Cloudflare's Clef-flash with the release's own `systemone`
+function; `elephant_bench/modal_app.py` serves Base Labs' elephant-1 with the model repo's own
+`setup.sh`. Both are Qwen3.5-9B models on an H100, behind a bearer key taken from the existing
+`llm2jev-serve-key` Modal secret (`LLM2JEV_API_KEY` locally), and receive the same requests as
+Jev. The run scripts read `.env`, resume from their ledgers when re-run, and default to the
+original deployment's URL; set `CLEF_URL` or `ELEPHANT_URL` to your own.
+
+```bash
+uvx modal run clef_bench/modal_app.py::download
+uvx modal deploy clef_bench/modal_app.py
+CLEF_URL=https://<workspace>--jev-test-clef-flash-server-api.modal.run
+CLEF_URL=$CLEF_URL clef_bench/run.sh clef-full data/full-test results/clef-flash-full
+CLEF_URL=$CLEF_URL clef_bench/run.sh clef-intents data/intents-test results/clef-flash-intents-test
+CLEF_URL=$CLEF_URL kev_suites/run_clef.sh
+clef_bench/analyze.sh
+
+uvx modal run elephant_bench/modal_app.py::download
+uvx modal deploy elephant_bench/modal_app.py
+ELEPHANT_URL=https://<workspace>--jev-test-elephant-server-api.modal.run
+ELEPHANT_URL=$ELEPHANT_URL elephant_bench/run_all.sh   # intents, LexGLUE, then Kev's suites
+elephant_bench/analyze.sh
+```
+
+elephant-1's card says requests over 16,384 tokens are refused; the server returns them as
+HTTP 422 so they count as failures. The full runs had none (`RESULTS.md`). `clef_bench/PREREG-train-probe.md` and `clef_bench/train_probe.py` are the
+pre-registered test of whether Clef-flash trained on BANKING77 and CLINC150; the probe script
+keeps the original deployment URL it was registered with.
+
 ## Fine-tuned BERT baseline
 
 `bert/` reproduces the LexGLUE BERT-base baseline with the upstream
@@ -361,16 +417,28 @@ Upstream's `run_eurlex.sh` trains 2 epochs, which under-fits (66.5 / 33.9); use 
 (see `RESULTS.md` and coastalcph/lex-glue#21).
 
 `jobs/launch.py` supervises a long `jev-bench run` (heartbeats, 30 s+ backoff relaunch on
-throttles, hard stop on 401/402). It imports a local `jobstate` helper that is not in this
-repository.
+throttles, hard stop on 401/402). It and `scripts/run_decisions.py` import a local `jobstate`
+helper that is not in this repository.
+
+## Findings report
+
+```bash
+uv run python report/build_report.py
+```
+
+Renders `report/template.html` into `report/findings.html` from the committed `analysis/*.json`
+files and the run ledgers under `results/`. Means are computed from unrounded per-task scores,
+the script asserts them against the values in `RESULTS.md`, and the page's "results as of"
+commit is the last commit that touched `analysis/`.
 
 ## Development
 
 ```bash
 uv sync --locked
 uv run pytest -q
-uv run ruff check src tests bert analysis
-uv run ruff format --check src tests bert analysis
+D="src tests bert analysis scripts report kev_suites clef_bench elephant_bench llm2jev_bench encoder jobs"
+uv run ruff check $D
+uv run ruff format --check $D
 ```
 
 Tests use synthetic data and a mocked HTTP transport and require no credentials or network.
@@ -378,9 +446,10 @@ They check reference metric edge cases, request isolation from gold labels, stri
 validation, error handling, dataset integrity, resuming, and all seven task paths.
 
 Code lives in `src/jev_test`: `data.py` freezes datasets, `tasks.py` and `questions.py` define
-the protocol, `client.py` calls System One, `runner.py` checkpoints inference, and
-`metrics.py`/`report.py` score results, and `analysis.py` adds kappa, calibration, and paired
-comparisons. `assets/labels.json` includes label-source attribution.
+the protocol, `client.py` calls System One, `chat.py` and `decisions.py` hold the chat and Decisions
+protocols, `chatshim.py` serves a chat model as a local System One endpoint, `runner.py` and
+`storage.py` checkpoint inference, `metrics.py`/`report.py` score results, and `analysis.py`
+adds kappa, calibration, and paired comparisons. `assets/labels.json` includes label-source attribution.
 
 ## Sources and attribution
 

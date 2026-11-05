@@ -1,4 +1,5 @@
-"""Summarize Jev, Luna, Kev-4B, LLM2Jev, Clef-flash, elephant-1 and the encoders on Kev's frozen suites.
+"""Summarize every model scored on Kev's frozen suites (Jev, Luna, Kev-4B, LLM2Jev, Clef-flash,
+elephant-1 and the encoders).
 
 Reads `results/kev-suites/<model>-<suite>-<split>/{report,rows}.json` written by
 `kev.benchmark`, and Kev-4B's published release/locked-test reports from

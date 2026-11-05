@@ -93,8 +93,10 @@ async def run_benchmark(
     if dry_run and resume:
         raise ValueError("--dry-run cannot be combined with --resume")
     if not dry_run and not api_key:
-        raise ValueError("Set the API key env var (OPENAI_API_KEY for --protocol decisions, "
-                         "else OPENROUTER_API_KEY), or use --dry-run to inspect requests")
+        raise ValueError(
+            "Set the API key env var (OPENAI_API_KEY for --protocol decisions, "
+            "else OPENROUTER_API_KEY), or use --dry-run to inspect requests"
+        )
     data_manifest, examples = load_prepared(data_dir)
     # Validate truncation before creating artifacts or making any requests.
     build_request(examples[0], model, max_chars)

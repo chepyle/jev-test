@@ -11,6 +11,6 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
-      - run: uv run ruff check src tests bert analysis
-      - run: uv run ruff format --check src tests bert analysis
+      - run: uv run ruff check src tests bert analysis scripts report kev_suites clef_bench elephant_bench llm2jev_bench encoder jobs
+      - run: uv run ruff format --check src tests bert analysis scripts report kev_suites clef_bench elephant_bench llm2jev_bench encoder jobs
       - run: uv run pytest -q

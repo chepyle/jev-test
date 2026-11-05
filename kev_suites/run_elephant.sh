@@ -3,7 +3,7 @@
 set -u
 cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
-URL=https://jakealbrecht--jev-test-elephant-server-api.modal.run
+URL=${ELEPHANT_URL:-https://jakealbrecht--jev-test-elephant-server-api.modal.run}
 cd third_party/kev
 OUT=../../results/kev-suites
 export KEV_REMOTE_API_KEY=$LLM2JEV_API_KEY  # the endpoint reuses the llm2jev-serve-key secret

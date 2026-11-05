@@ -35,7 +35,7 @@ image = (
     .pip_install("huggingface_hub[hf_xet]", "fastapi[standard]")
     .run_commands(
         # setup.sh needs only itself, constraints.txt and serve.patch from the model repo.
-        f"python -c \"from huggingface_hub import snapshot_download as d; "
+        f'python -c "from huggingface_hub import snapshot_download as d; '
         f"d('{MODEL}', revision='{MODEL_REVISION}', local_dir='/opt/elephant-files', "
         f"allow_patterns=['setup.sh', 'constraints.txt', 'serve.patch'])\"",
         "mkdir -p /opt/runtime && bash /opt/elephant-files/setup.sh /opt/runtime",

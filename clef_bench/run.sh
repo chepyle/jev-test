@@ -6,6 +6,6 @@ set -eu
 cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
 export OPENROUTER_API_KEY=$LLM2JEV_API_KEY  # jev-bench sends this as the bearer key
-URL=https://jakealbrecht--jev-test-clef-flash-server-api.modal.run/v1/systemone
+URL=${CLEF_URL:-https://jakealbrecht--jev-test-clef-flash-server-api.modal.run}/v1/systemone  # CLEF_URL: your own deployment
 exec uv run python jobs/launch.py "$1" "$2" "$3" --model clef-flash --endpoint "$URL" \
   --concurrency "${4:-16}" --timeout 600

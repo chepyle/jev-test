@@ -36,7 +36,9 @@ keep = [i for i in ids if i not in refused]
 out = {"n_all": len(ids), "n_refused_rows": len(refused), "n_kept": len(keep)}
 for name, src in (("decisions", D), ("jev", J), ("luna_chat", L)):
     for label, subset in (("all", ids), ("kept", keep)):
-        s = score("unfair_tos", [src[i]["gold"] for i in subset], [src[i]["prediction"] for i in subset])
+        s = score(
+            "unfair_tos", [src[i]["gold"] for i in subset], [src[i]["prediction"] for i in subset]
+        )
         out[f"{name}_{label}_micro_f1"] = round(s["micro_f1"], 4)
 
 
@@ -49,7 +51,10 @@ def matrix(rows: list[list[int]]) -> np.ndarray:
     return m
 
 
-gold, a, b = (matrix([src[i][key] for i in keep]) for src, key in ((D, "gold"), (D, "prediction"), (J, "prediction")))
+gold, a, b = (
+    matrix([src[i][key] for i in keep])
+    for src, key in ((D, "gold"), (D, "prediction"), (J, "prediction"))
+)
 rng = np.random.default_rng(0)
 deltas = []
 for _ in range(1000):
@@ -60,5 +65,7 @@ for _ in range(1000):
     )
 out["delta_decisions_minus_jev_kept"] = round(float(np.mean(deltas)), 4)
 out["delta_ci95"] = [round(float(x), 4) for x in np.percentile(deltas, [2.5, 97.5])]
-(ROOT / "analysis" / "decisions-unfair-sensitivity.json").write_text(json.dumps(out, indent=2) + "\n")
+(ROOT / "analysis" / "decisions-unfair-sensitivity.json").write_text(
+    json.dumps(out, indent=2) + "\n"
+)
 print(json.dumps(out, indent=2))

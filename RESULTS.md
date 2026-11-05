@@ -83,7 +83,7 @@ valid protocol; this bounds what validation-set threshold tuning could recover.
 
 A global threshold does not close the EUR-LEX gap (+0.9 μ-F1 at best). On UNFAIR-ToS it
 trades macro-F1 for micro-F1, so per-label thresholds tuned on validation are the candidate
-next step there.
+next step there (done: see "Jev with validation-tuned thresholds" below).
 
 ## Paired comparison with a reproduced BERT-base baseline
 
@@ -1057,6 +1057,9 @@ Findings:
 
 ## OpenAI Decisions API (`gpt-6-luna`), smoke only
 
+Superseded for scores by the full-test-split section that follows; kept for the protocol
+description and the smoke-versus-full comparison.
+
 - Endpoint: `POST https://api.openai.com/v1/decisions`, model `gpt-6-luna`, run 2026-11-01 as
   `--protocol decisions` (`src/jev_test/decisions.py`). Not the same model as the
   `openai/gpt-5.6-luna` chat row above. Same sample as `data/smoke50`: 50 per task, 7 LexGLUE
@@ -1206,6 +1209,7 @@ results were averaged, signed, compared and described.
 | 9 | README | Decisions missing from the results table and summary; "Both beat fine-tuned BERT on CaseHOLD" read as Jev and Kev-4B (Kev-4B 65.5 < BERT 70.8). | Row and sentence added; subject named. |
 | 10 | `src/jev_test/report.py` | Every `report.md` was titled "Jev on LexGLUE" with protocol "System One", including Luna (chat) and Decisions runs. | Title is the requested model; protocol from the manifest. |
 | 11 | `scripts/run_decisions.py` | Heartbeat counted ledger lines (23,608 / 23,607 after one retry); `resume_cmd` doubled `--resume`; two deterministic refusals left the job FAILED with no way to complete. | Counts unique ids; explicit `resume_cmd`; refusal-only runs end as done with an incident line. |
+| 12 | README, CI (2026-11-05) | README never documented Clef-flash or elephant-1 runs, the intent tasks, the HTML report build, or the chat/Decisions modules; run scripts hard-coded one Modal workspace URL. CI has failed on `main` since `3b793ad`: `analysis/decisions_unfair_sensitivity.py` (E501) and `src/jev_test/runner.py` (format), both from the Decisions commits; lint covered only 4 of 12 code directories. | README sections added; `CLEF_URL` / `ELEPHANT_URL` override the default URL; both files formatted (sensitivity output byte-identical); lint and format now cover all 12 directories. |
 
 Not fixed, recorded here:
 
@@ -1220,3 +1224,6 @@ Not fixed, recorded here:
   re-checked in this audit (INFERRED). The earlier "only model the endpoint serves" claim was
   replaced: the repo owner confirmed `gpt-6-luna` as the Decisions model on 2026-11-05, and every
   ledger response reports it (VERIFIED).
+- The protocol hash covers source bytes, so formatting-only edits change it. After formatting
+  `runner.py`, no run directory matches the current hash (only `decisions-full` did, and it is
+  complete); resuming any of them needs a new output directory or a recorded re-pin.
