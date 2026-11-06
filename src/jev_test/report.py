@@ -6,6 +6,7 @@ import math
 import statistics
 from pathlib import Path
 
+from jev_test.fmt import pct
 from jev_test.metrics import aggregate, score
 from jev_test.storage import read_jsonl, write_json
 from jev_test.tasks import TASK_NAMES, get_task
@@ -124,6 +125,8 @@ def make_report(manifest: dict, records: list[dict]) -> dict:
 PROTOCOL_LABELS = {  # manifests written before --protocol existed are System One runs
     "systemone": "zero-shot System One; no training or test-label tuning",
     "chat": "zero-shot chat completions, strict JSON schema; no training or test-label tuning",
+    "chat-perlabel": "zero-shot chat completions, one strict-JSON boolean per label with System "
+    "One's per-label question and criteria; no training or test-label tuning",
     "decisions": "zero-shot OpenAI Decisions API; no training or test-label tuning",
 }
 
@@ -144,8 +147,8 @@ def markdown(report: dict) -> str:
     ]
     for name, task in report["tasks"].items():
         scores = task["scores"]
-        micro = f"{100 * scores['micro_f1']:.2f}" if scores else "—"
-        macro = f"{100 * scores['macro_f1']:.2f}" if scores else "—"
+        micro = f"{pct(scores['micro_f1'], 2):.2f}" if scores else "—"
+        macro = f"{pct(scores['macro_f1'], 2):.2f}" if scores else "—"
         lines.append(
             f"| {name} | {task['successful']} / {task['expected']} | {task['failed']} "
             f"| {micro} | {macro} | {task['truncated']} |"
@@ -160,8 +163,8 @@ def markdown(report: dict) -> str:
         for average in ("arithmetic", "harmonic", "geometric"):
             values = report["selected_tasks_aggregate"]
             lines.append(
-                f"| {average} | {100 * values['micro_f1'][average]:.2f} "
-                f"| {100 * values['macro_f1'][average]:.2f} |"
+                f"| {average} | {pct(values['micro_f1'][average], 2):.2f} "
+                f"| {pct(values['macro_f1'][average], 2):.2f} |"
             )
     else:
         lines.extend(["", "Aggregate unavailable: incomplete coverage or mixed model versions."])

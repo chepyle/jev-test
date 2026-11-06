@@ -17,6 +17,8 @@ from pathlib import Path
 
 import numpy as np
 
+from jev_test.fmt import fixed
+
 ROOT = Path(__file__).resolve().parents[1]
 RESULTS = ROOT / "results" / "kev-suites"
 KEV = ROOT / "third_party" / "kev"
@@ -151,7 +153,7 @@ def main():
 
 
 def fmt(ci):
-    return f"[{ci[0]:.3f}, {ci[1]:.3f}]"
+    return f"[{fixed(ci[0], 3)}, {fixed(ci[1], 3)}]"
 
 
 def print_tables(summary):
@@ -171,15 +173,16 @@ def print_tables(summary):
     print("|---|---:|" + "---|" * len(MODELS) + "---:|")
     for key, e in summary["splits"].items():
         cells = " | ".join(
-            f"{e['models'][m]['acc']:.3f} {fmt(e['models'][m]['acc_ci'])}" for m in MODELS
+            f"{fixed(e['models'][m]['acc'], 3)} {fmt(e['models'][m]['acc_ci'])}" for m in MODELS
         )
-        print(f"| {key} | {e['n_questions']} | {cells} | {published[key]['acc']:.3f} |")
+        print(f"| {key} | {e['n_questions']} | {cells} | {fixed(published[key]['acc'], 3)} |")
     print("\nPaired differences [95% CI]:\n")
     print("| Split | " + " | ".join(f"{short[a]} − {short[b]}" for a, b in DIFFS) + " |")
     print("|---|" + "---|" * len(DIFFS))
     for key, e in summary["splits"].items():
         cells = " | ".join(
-            f"{e[f'{a}_minus_{b}']['acc']:+.3f} {fmt(e[f'{a}_minus_{b}']['ci'])}" for a, b in DIFFS
+            f"{fixed(e[f'{a}_minus_{b}']['acc'], 3, sign=True)} {fmt(e[f'{a}_minus_{b}']['ci'])}"
+            for a, b in DIFFS
         )
         print(f"| {key} | {cells} |")
     print("\nCalibration: ECE / Brier / wrong at >= 0.9 (Luna is one-hot, omitted).\n")
@@ -189,7 +192,8 @@ def print_tables(summary):
     for key, e in summary["splits"].items():
         stats = [e["models"][m] for m in cal]
         cells = " | ".join(
-            f"{x['ece']:.3f} / {x['brier']:.3f} / {x['confident_error_rate']:.3f}" for x in stats
+            f"{fixed(x['ece'], 3)} / {fixed(x['brier'], 3)} / {fixed(x['confident_error_rate'], 3)}"
+            for x in stats
         )
         print(f"| {key} | {cells} |")
     print()
@@ -199,7 +203,9 @@ def print_tables(summary):
         print("| Source | n | " + " | ".join(short[m] for m in MODELS) + " |")
         print("|---|---:|" + "---:|" * len(MODELS))
         for src, v in e["models"]["jev"]["by_source"].items():
-            accs = " | ".join(f"{e['models'][x]['by_source'][src]['acc']:.3f}" for x in MODELS)
+            accs = " | ".join(
+                f"{fixed(e['models'][x]['by_source'][src]['acc'], 3)}" for x in MODELS
+            )
             print(f"| {src} | {v['n']} | {accs} |")
         print()
 

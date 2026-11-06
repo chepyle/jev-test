@@ -12,7 +12,14 @@ from pathlib import Path
 import httpx
 from filelock import FileLock
 
-from jev_test.chat import CHAT_PROTOCOL_VERSION, build_chat_request, parse_chat_response
+from jev_test.chat import (
+    CHAT_PERLABEL_PROTOCOL_VERSION,
+    CHAT_PROTOCOL_VERSION,
+    build_chat_perlabel_request,
+    build_chat_request,
+    parse_chat_perlabel_response,
+    parse_chat_response,
+)
 from jev_test.client import (
     CHAT_ENDPOINT,
     DEFAULT_ENDPOINT,
@@ -72,11 +79,12 @@ async def run_benchmark(
     protocol: str = "systemone",
     transport: httpx.AsyncBaseTransport | None = None,
 ) -> dict:
-    if protocol not in ("systemone", "chat", "decisions"):
-        raise ValueError("protocol must be 'systemone', 'chat' or 'decisions'")
-    chat = protocol == "chat"
+    if protocol not in ("systemone", "chat", "chat-perlabel", "decisions"):
+        raise ValueError("protocol must be 'systemone', 'chat', 'chat-perlabel' or 'decisions'")
+    chat = protocol in ("chat", "chat-perlabel")
     build_request, parse_response = {
         "chat": (build_chat_request, parse_chat_response),
+        "chat-perlabel": (build_chat_perlabel_request, parse_chat_perlabel_response),
         "systemone": (systemone_request, systemone_parse),
         "decisions": (build_decisions_request, parse_decisions_response),
     }[protocol]
@@ -108,6 +116,7 @@ async def run_benchmark(
         "protocol": protocol,
         "protocol_version": {
             "chat": CHAT_PROTOCOL_VERSION,
+            "chat-perlabel": CHAT_PERLABEL_PROTOCOL_VERSION,
             "systemone": PROTOCOL_VERSION,
             "decisions": DECISIONS_PROTOCOL_VERSION,
         }[protocol],
@@ -210,6 +219,7 @@ async def run_benchmark(
         ) as http:
             factory = {
                 "chat": ChatClient,
+                "chat-perlabel": ChatClient,
                 "systemone": SystemOneClient,
                 "decisions": DecisionsClient,
             }[protocol]

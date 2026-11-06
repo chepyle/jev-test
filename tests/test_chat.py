@@ -131,3 +131,49 @@ def test_chat_refusal_is_checkpointed_as_an_error_not_a_prediction(prepared, tmp
     records = read_jsonl(tmp_path / "out" / "predictions.jsonl")
     assert records and all(r["status"] == "error" for r in records)
     assert all("prediction" not in r for r in records)
+
+
+def test_perlabel_request_asks_system_ones_question_for_every_label():
+    from jev_test.chat import build_chat_perlabel_request
+    from jev_test.questions import build_request
+
+    row = {
+        "id": "unfair_tos/0",
+        "task": "unfair_tos",
+        "index": 0,
+        "text": "We may end it.",
+        "gold": [],
+    }
+    payload, _ = build_chat_perlabel_request(row, "m", 48000)
+    systemone, _ = build_request(row, "m", 48000)
+    content = payload["messages"][1]["content"]
+    for key, question in systemone["questions"].items():
+        assert question["criteria"]["true"] in content
+        assert question["criteria"]["false"] in content
+        assert question["instructions"].split(" Does this label apply")[1] in content
+        assert (
+            payload["response_format"]["json_schema"]["schema"]["properties"][key]["type"]
+            == "boolean"
+        )
+    assert "Select every option" not in content
+
+
+def test_perlabel_parse_is_strict():
+    import json as _json
+
+    import pytest
+
+    from jev_test.chat import parse_chat_perlabel_response
+
+    def response(answer):
+        return {"model": "m", "choices": [{"message": {"content": _json.dumps(answer)}}]}
+
+    answer = {f"label_{i}": i in (1, 4) for i in range(8)}
+    assert parse_chat_perlabel_response("unfair_tos", response(answer), 0.5) == ([1, 4], {})
+    with pytest.raises(ValueError):
+        parse_chat_perlabel_response("unfair_tos", response({**answer, "label_1": 1}), 0.5)
+    with pytest.raises(ValueError):
+        parse_chat_perlabel_response("unfair_tos", response({"label_0": True}), 0.5)
+    with pytest.raises(ValueError):
+        build = __import__("jev_test.chat", fromlist=["x"]).build_chat_perlabel_request
+        build({"id": "ledgar/0", "task": "ledgar", "index": 0, "text": "x", "gold": [0]}, "m", 0)

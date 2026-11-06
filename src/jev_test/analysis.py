@@ -65,6 +65,57 @@ def ece(confidence: np.ndarray, correct: np.ndarray, bins: int = ECE_BINS) -> fl
     return float(total)
 
 
+class ResampleScorer:
+    """Micro- and macro-F1 of `metrics.score` for resamples of one fixed record list.
+
+    `score` rebuilds label matrices and runs sklearn's input validation on every call, which
+    was 89% of analysis time. This builds the upstream matrices once (with the synthetic
+    none-of-the-above column where the task has one) and computes sklearn 1.9's formula,
+    2·tp / (true + pred) per column in float64 with 0 for an empty column and `np.mean` over
+    columns (all columns for multi-label tasks, the observed label union for single-label
+    ones), so results equal `score` exactly; `tests/test_analysis.py` checks equality."""
+
+    def __init__(self, task_name: str, gold: list, pred: list):
+        task = get_task(task_name)
+        self.multilabel = task.multilabel
+        if task.multilabel:
+            width = len(task.codes) + int(task.has_none_class)
+            self.truth = np.zeros((len(gold), width), dtype=np.int64)
+            self.pred = np.zeros_like(self.truth)
+            for matrix, rows in ((self.truth, gold), (self.pred, pred)):
+                for index, labels in enumerate(rows):
+                    matrix[index, labels] = 1
+                    if task.has_none_class and not labels:
+                        matrix[index, -1] = 1
+        else:
+            self.truth = np.array([x[0] for x in gold], dtype=np.int64)
+            self.pred = np.array([x[0] for x in pred], dtype=np.int64)
+            self.width = int(max(self.truth.max(), self.pred.max())) + 1
+
+    @staticmethod
+    def _f1(tp: np.ndarray, true: np.ndarray, pred: np.ndarray) -> np.ndarray:
+        denom = true.astype(np.float64) + pred.astype(np.float64)
+        out = np.zeros_like(denom)
+        np.divide(2.0 * tp.astype(np.float64), denom, out=out, where=denom != 0)
+        return out
+
+    def __call__(self, idx: np.ndarray) -> tuple[float, float]:
+        if self.multilabel:
+            t, p = self.truth[idx], self.pred[idx]
+            tp, true, pred = (t & p).sum(0), t.sum(0), p.sum(0)
+            per_label = self._f1(tp, true, pred)
+        else:
+            t, p = self.truth[idx], self.pred[idx]
+            true = np.bincount(t, minlength=self.width)
+            pred = np.bincount(p, minlength=self.width)
+            tp = np.bincount(t[t == p], minlength=self.width)
+            seen = (true + pred) > 0
+            tp, true, pred = tp[seen], true[seen], pred[seen]
+            per_label = self._f1(tp, true, pred)
+        micro = self._f1(np.array([tp.sum()]), np.array([true.sum()]), np.array([pred.sum()]))
+        return float(micro[0]), float(np.mean(per_label))
+
+
 def interval(values: list[float]) -> list[float]:
     return [float(np.percentile(values, 2.5)), float(np.percentile(values, 97.5))]
 
@@ -202,16 +253,17 @@ def analyze_task(task_name: str, records: list[dict], rng: np.random.Generator) 
 
     oos = task.codes.index("oos") if "oos" in task.codes else None
     point.update(score(task_name, gold, pred))
-    samples = {key: [], "micro_f1": []}
+    samples = {key: [], "micro_f1": [], "macro_f1": []}
+    scorer = ResampleScorer(task_name, gold, pred)
     if oos is not None:
         point.update(out_of_scope_metrics(g, p, oos))
         samples.update({"in_scope_accuracy": [], "oos_recall": []})
     for _ in range(BOOTSTRAP):
         idx = rng.integers(0, len(records), len(records))
         samples[key].append(kappa(idx))
-        samples["micro_f1"].append(
-            score(task_name, [gold[i] for i in idx], [pred[i] for i in idx])["micro_f1"]
-        )
+        micro, macro = scorer(idx)
+        samples["micro_f1"].append(micro)
+        samples["macro_f1"].append(macro)
         if oos is not None:  # uses the same draw, so other tasks' intervals are unchanged
             extra = out_of_scope_metrics(g[idx], p[idx], oos)
             samples["in_scope_accuracy"].append(extra["in_scope_accuracy"])
@@ -253,15 +305,12 @@ def paired(task_name: str, a: list[dict], b: list[dict], rng: np.random.Generato
     only_b = int((~correct_a & correct_b).sum())
     mcnemar = binomtest(only_a, only_a + only_b, 0.5).pvalue if only_a + only_b else 1.0
     diffs = {"micro_f1": [], "macro_f1": []}
+    score_a, score_b = ResampleScorer(task_name, gold, pa), ResampleScorer(task_name, gold, pb)
     for _ in range(BOOTSTRAP):
         idx = rng.integers(0, len(a), len(a))
-        g = [gold[i] for i in idx]
-        sa, sb = (
-            score(task_name, g, [pa[i] for i in idx]),
-            score(task_name, g, [pb[i] for i in idx]),
-        )
-        for k in diffs:
-            diffs[k].append(sa[k] - sb[k])
+        (micro_a, macro_a), (micro_b, macro_b) = score_a(idx), score_b(idx)
+        diffs["micro_f1"].append(micro_a - micro_b)
+        diffs["macro_f1"].append(macro_a - macro_b)
     full_a, full_b = score(task_name, gold, pa), score(task_name, gold, pb)
     return {
         "n": len(a),
@@ -284,9 +333,11 @@ def analyze(sources: dict[str, Path], seed: int = 0) -> dict:
     names = list(loaded)
     report: dict = {"bootstrap": BOOTSTRAP, "seed": seed, "sources": {}, "paired": {}}
     for name in names:
-        rng = np.random.default_rng(seed)
+        # Ledgers are in async completion order: sort by id, and give every task a fresh
+        # generator, so intervals depend only on the records (not on line or task order) and
+        # two models with the same examples resample the same items, as in `paired`.
         report["sources"][name] = {
-            task: analyze_task(task, list(recs.values()), rng)
+            task: analyze_task(task, [recs[i] for i in sorted(recs)], np.random.default_rng(seed))
             for task, recs in loaded[name].items()
         }
     for other in names[1:]:

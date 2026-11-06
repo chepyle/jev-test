@@ -12,17 +12,21 @@
 
 Baselines: [LexGLUE leaderboard](https://github.com/coastalcph/lex-glue#leaderboard),
 medium-sized models, mean of 5 seeds, fine-tuned on each training set. Jev intervals: 95%
-bootstrap over test examples (300 resamples). The leaderboard gives no intervals.
+bootstrap over test examples, 1,000 resamples, seed 0, from `analysis/full-test.json` (the
+same intervals as the HTML report). The leaderboard gives no intervals. Until the 2026-11-05
+audit this table carried intervals from an uncommitted 300-resample run, including macro-F1
+intervals no committed script produced; six of seven μ-F1 intervals differed from the report's
+in the last digit.
 
 | Task | Jev μ-F1 [95% CI] | BERT | Legal-BERT | Jev m-F1 [95% CI] | BERT | Legal-BERT |
 |---|---|---:|---:|---|---:|---:|
-| ECtHR A | 73.0 [71.2, 74.9] | 71.2 | 70.0 | 71.4 [67.6, 74.6] | 63.6 | 64.0 |
-| ECtHR B | 75.4 [74.0, 77.0] | 79.7 | 80.4 | 72.6 [68.8, 75.4] | 73.4 | 74.7 |
-| SCOTUS | 72.6 [70.2, 75.4] | 68.3 | 76.4 | 62.1 [58.6, 65.3] | 58.3 | 66.5 |
-| EUR-LEX | 39.1 [38.8, 39.4] | 71.4 | 72.1 | 37.0 [36.2, 37.6] | 57.2 | 57.4 |
-| LEDGAR | 75.3 [74.5, 76.1] | 87.6 | 88.2 | 63.3 [61.9, 64.3] | 81.8 | 83.0 |
-| UNFAIR-ToS | 76.4 [74.3, 78.5] | 95.6 | 96.0 | 54.4 [50.5, 58.0] | 81.3 | 83.0 |
-| CaseHOLD | 77.3 [75.9, 78.6] | 70.8 | 75.3 | 77.3 | 70.8 | 75.3 |
+| ECtHR A | 73.0 [71.0, 74.9] | 71.2 | 70.0 | 71.3 [67.4, 74.2] | 63.6 | 64.0 |
+| ECtHR B | 75.4 [74.0, 76.9] | 79.7 | 80.4 | 72.6 [68.9, 75.4] | 73.4 | 74.7 |
+| SCOTUS | 72.6 [70.1, 74.8] | 68.3 | 76.4 | 62.1 [57.8, 65.2] | 58.3 | 66.5 |
+| EUR-LEX | 39.1 [38.8, 39.4] | 71.4 | 72.1 | 37.0 [36.3, 37.6] | 57.2 | 57.4 |
+| LEDGAR | 75.3 [74.5, 76.2] | 87.6 | 88.2 | 63.3 [62.0, 64.3] | 81.8 | 83.0 |
+| UNFAIR-ToS | 76.4 [74.2, 78.4] | 95.6 | 96.0 | 54.4 [49.8, 58.1] | 81.3 | 83.0 |
+| CaseHOLD | 77.3 [76.0, 78.7] | 70.8 | 75.3 | 77.3 [76.0, 78.7] | 70.8 | 75.3 |
 | Arithmetic mean | 69.9 | 77.8 | 79.8 | 62.6 | 69.5 | 72.0 |
 | Harmonic mean | 66.3 | 76.7 | 78.9 | 59.3 | 68.2 | 70.8 |
 
@@ -38,18 +42,18 @@ Single-label tasks:
 
 | Task | n | Accuracy | Cohen's κ [95% CI] | MCC | Top-3 acc. | Mean confidence | ECE | Brier |
 |---|---:|---:|---|---:|---:|---:|---:|---:|
-| SCOTUS | 1400 | 0.726 | 0.670 [0.642, 0.698] | 0.672 | 0.897 | 0.873 | 0.148 | 0.428 |
+| SCOTUS | 1400 | 0.726 | 0.670 [0.642, 0.697] | 0.672 | 0.897 | 0.873 | 0.148 | 0.428 |
 | LEDGAR | 10000 | 0.753 | 0.748 [0.740, 0.757] | 0.749 | 0.903 | 0.869 | 0.116 | 0.368 |
-| CaseHOLD | 3600 | 0.773 | 0.716 [0.698, 0.734] | 0.717 | 0.968 | 0.810 | 0.038 | 0.302 |
+| CaseHOLD | 3600 | 0.773 | 0.716 [0.700, 0.734] | 0.717 | 0.968 | 0.810 | 0.038 | 0.302 |
 
 Multi-label tasks:
 
 | Task | n | Macro label κ [95% CI] | Pooled κ | Micro precision | Micro recall | Pred. / gold labels per doc | Macro ROC-AUC | ECE |
 |---|---:|---|---:|---:|---:|---:|---:|---:|
-| ECtHR A | 1000 | 0.716 [0.672, 0.751] | 0.727 | 0.644 | 0.934 | 1.58 / 1.09 | 0.974 | 0.082 |
-| ECtHR B | 1000 | 0.681 [0.650, 0.706] | 0.706 | 0.644 | 0.913 | 2.03 / 1.44 | 0.951 | 0.096 |
-| EUR-LEX | 5000 | 0.337 [0.330, 0.343] | 0.347 | 0.294 | 0.583 | 10.09 / 5.08 | 0.902 | 0.099 |
-| UNFAIR-ToS | 1607 | 0.493 [0.447, 0.533] | 0.425 | 0.287 | 0.925 | 0.37 / 0.12 | 0.992 | 0.073 |
+| ECtHR A | 1000 | 0.716 [0.674, 0.747] | 0.727 | 0.644 | 0.934 | 1.58 / 1.09 | 0.974 | 0.082 |
+| ECtHR B | 1000 | 0.681 [0.651, 0.706] | 0.706 | 0.644 | 0.913 | 2.03 / 1.44 | 0.951 | 0.096 |
+| EUR-LEX | 5000 | 0.337 [0.330, 0.344] | 0.347 | 0.294 | 0.583 | 10.09 / 5.08 | 0.902 | 0.099 |
+| UNFAIR-ToS | 1607 | 0.493 [0.442, 0.534] | 0.425 | 0.287 | 0.925 | 0.37 / 0.12 | 0.992 | 0.073 |
 
 Findings:
 
@@ -76,7 +80,7 @@ valid protocol; this bounds what validation-set threshold tuning could recover.
 
 | Task | Oracle threshold | μ-F1 at 0.5 | μ-F1 at oracle | m-F1 at 0.5 | m-F1 at oracle |
 |---|---:|---:|---:|---:|---:|
-| ECtHR A | 0.60 | 73.0 | 74.3 | 71.4 | 72.4 |
+| ECtHR A | 0.60 | 73.0 | 74.3 | 71.3 | 72.4 |
 | ECtHR B | 0.75 | 75.4 | 80.2 | 72.6 | 75.5 |
 | EUR-LEX | 0.65 | 39.1 | 40.0 | 37.0 | 35.9 |
 | UNFAIR-ToS | 0.90 | 76.4 | 90.6 | 54.4 | 35.2 |
@@ -126,13 +130,13 @@ Cohen's κ against gold (per-label mean for multi-label tasks), 95% bootstrap CI
 
 | Task | Jev κ | BERT κ | Jev ECE | BERT ECE |
 |---|---|---|---:|---:|
-| ECtHR A | **0.716** [0.672, 0.751] | 0.617 [0.575, 0.655] | 0.082 | 0.032 |
-| ECtHR B | 0.681 [0.650, 0.706] | 0.710 [0.676, 0.738] | 0.096 | 0.034 |
-| SCOTUS | **0.670** [0.642, 0.698] | 0.611 [0.583, 0.640] | 0.148 | 0.259 |
-| EUR-LEX | 0.337 [0.330, 0.343] | **0.551** [0.538, 0.560] | 0.099 | 0.012 |
-| LEDGAR | 0.748 [0.740, 0.757] | **0.877** [0.871, 0.884] | 0.116 | 0.109 |
-| UNFAIR-ToS | 0.493 [0.447, 0.533] | **0.775** [0.711, 0.824] | 0.073 | 0.005 |
-| CaseHOLD | **0.716** [0.698, 0.734] | 0.635 [0.618, 0.653] | 0.038 | 0.049 |
+| ECtHR A | **0.716** [0.674, 0.747] | 0.617 [0.578, 0.649] | 0.082 | 0.032 |
+| ECtHR B | 0.681 [0.651, 0.706] | 0.710 [0.677, 0.738] | 0.096 | 0.034 |
+| SCOTUS | **0.670** [0.642, 0.697] | 0.611 [0.581, 0.641] | 0.148 | 0.259 |
+| EUR-LEX | 0.337 [0.330, 0.344] | **0.551** [0.539, 0.560] | 0.099 | 0.012 |
+| LEDGAR | 0.748 [0.740, 0.757] | **0.877** [0.871, 0.883] | 0.116 | 0.109 |
+| UNFAIR-ToS | 0.493 [0.442, 0.534] | **0.775** [0.708, 0.823] | 0.073 | 0.005 |
+| CaseHOLD | **0.716** [0.700, 0.734] | 0.635 [0.616, 0.654] | 0.038 | 0.049 |
 
 Bold marks non-overlapping intervals. ECtHR B intervals overlap.
 
@@ -169,7 +173,11 @@ Findings:
 
 - **Zero-shot Jev beats fine-tuned BERT on three tasks with paired significance:** CaseHOLD
   (+6.5 μ-F1), SCOTUS (+5.4 μ-F1), and ECtHR A (+2.7 μ-F1, +9.5 m-F1). It loses on LEDGAR,
-  UNFAIR-ToS, EUR-LEX, and ECtHR B micro-F1.
+  UNFAIR-ToS, EUR-LEX, and ECtHR B micro-F1. After a Holm correction across all 98 paired
+  full-test comparisons in this file (`analysis/multiplicity.json`), ECtHR A's μ-F1 lead no longer
+  holds (Holm-adjusted p 0.22); CaseHOLD and SCOTUS do. Read at BERT's own input length
+  (controls section below), the SCOTUS lead holds (+4.6 [+1.7, +7.4]) and the ECtHR A lead does
+  not (+2.1 [−0.1, +4.3]).
 - **On ECtHR A the F1 and McNemar results point in opposite directions.** Jev has higher
   F1 but fewer exactly correct label sets (136 vs 182, p=0.012), because over-predicted
   labels cost partial F1 credit but zero exact-match credit.
@@ -192,23 +200,29 @@ Findings:
   5.5M output tokens. One 403 (key weekly limit) stopped the run at 92.3%; `--resume
   --retry-failed` completed it with 1,813 pending and 21,794 checkpointed (1 extra attempt).
 - Protocol: `--protocol chat`, not System One. The System One endpoint rejects the model
-  ("Model openai/gpt-5.6-luna does not exist"; it serves TypeSafe models only). Same
+  ("Model openai/gpt-5.6-luna does not exist"; it serves TypeSafe models only). Same task
   instructions, label descriptions, 48,000-character truncation, and gold isolation, but the
   answer is JSON generated under a strict schema, and multi-label tasks return a label set:
-  **no probabilities, no threshold, so no ROC-AUC or calibration for Luna.** Part of any
-  Jev-Luna difference may come from the protocol rather than the model.
+  **no probabilities, no threshold, so no ROC-AUC or calibration for Luna.**
+- **The multi-label question differs.** `chat` appends "Select every option that applies, or
+  none." and lists bare numbered options; System One asks one yes/no question per label ("Does
+  this label apply: …?") with a true and a false criterion sentence (`questions.py`). All four of
+  Luna's leads over Jev are on multi-label tasks. Earlier versions of this section, README and
+  the report said "same instructions" / "same questions" without this difference (found in the
+  2026-11-05 audit). The prompt control in "Controls: redraw, context and prompt" below asks Luna
+  System One's per-label questions on the same documents.
 
 ### F1, all three models
 
 | Task | Luna μ-F1 [95% CI] | Jev μ-F1 | BERT μ-F1 | Luna m-F1 | Jev m-F1 | BERT m-F1 |
 |---|---|---:|---:|---:|---:|---:|
-| ECtHR A | **78.9** [76.9, 80.8] | 73.0 | 70.3 | **75.4** | 71.4 | 61.9 |
-| ECtHR B | 78.8 [77.4, 80.1] | 75.4 | 78.6 | 73.3 | 72.6 | 72.5 |
-| SCOTUS | 68.3 [65.9, 70.5] | **72.6** | 67.2 | 59.7 | 62.1 | 60.7 |
+| ECtHR A | **78.9** [76.9, 80.8] | 73.0 | 70.3 | **75.4** | 71.3 | 61.9 |
+| ECtHR B | 78.8 [77.3, 80.2] | 75.4 | 78.6 | 73.3 | 72.6 | 72.5 |
+| SCOTUS | 68.3 [65.9, 70.6] | **72.6** | 67.2 | 59.7 | 62.1 | 60.7 |
 | EUR-LEX | 42.9 [42.4, 43.4] | 39.1 | **71.6** | 39.3 | 37.0 | **56.5** |
-| LEDGAR | 74.7 [73.8, 75.5] | 75.3 | **88.0** | 62.2 | 63.3 | **82.4** |
-| UNFAIR-ToS | 78.8 [76.9, 80.7] | 76.4 | **95.2** | 60.9 | 54.4 | **80.0** |
-| CaseHOLD | 76.8 [75.5, 78.1] | 77.3 | 70.8 | 76.8 | 77.3 | 70.8 |
+| LEDGAR | 74.6 [73.8, 75.5] | 75.3 | **88.0** | 62.2 | 63.3 | **82.4** |
+| UNFAIR-ToS | 78.8 [76.8, 80.7] | 76.4 | **95.2** | 60.9 | 54.4 | **80.0** |
+| CaseHOLD | 76.8 [75.4, 78.1] | 77.3 | 70.8 | 76.8 | 77.3 | 70.8 |
 | Arithmetic mean | 71.3 | 69.9 | 77.4 | 63.9 | 62.6 | 69.3 |
 | Harmonic mean | 68.4 | 66.3 | 76.3 | 61.1 | 59.3 | 68.0 |
 
@@ -241,23 +255,29 @@ Luna − BERT (`analysis/luna-vs-bert.json`):
 | UNFAIR-ToS | −16.4 [−18.5, −14.3] | −19.1 [−24.3, −13.6] | 40 / 310 | 7e-53 | 0.46 |
 | CaseHOLD | +5.9 [+4.1, +7.6] | +5.9 [+4.1, +7.6] | 599 / 385 | 9e-12 | 0.58 |
 
-Agreement with gold, Luna: macro label κ ECtHR A 0.761 [0.704, 0.800], ECtHR B 0.705
-[0.671, 0.732], EUR-LEX 0.370 [0.361, 0.377], UNFAIR-ToS 0.567 [0.520, 0.604]; Cohen's κ
-SCOTUS 0.630 [0.602, 0.656], LEDGAR 0.741 [0.733, 0.750], CaseHOLD 0.710 [0.694, 0.726].
+Agreement with gold, Luna: macro label κ ECtHR A 0.761 [0.710, 0.798], ECtHR B 0.705
+[0.671, 0.732], EUR-LEX 0.370 [0.361, 0.377], UNFAIR-ToS 0.567 [0.521, 0.609]; Cohen's κ
+SCOTUS 0.630 [0.601, 0.657], LEDGAR 0.741 [0.733, 0.750], CaseHOLD 0.710 [0.693, 0.727].
 
 Findings:
 
 - **The two zero-shot models are close, and neither dominates.** Luna leads on ECtHR A
   (+5.9 μ-F1), ECtHR B (+3.4), EUR-LEX (+3.9), and UNFAIR-ToS (+2.4). Jev leads on SCOTUS
   (+4.3) and marginally on LEDGAR (+0.7, lower CI bound +0.1). CaseHOLD is a tie. Arithmetic
-  mean μ-F1 71.3 vs 69.9.
+  mean μ-F1 71.3 vs 69.9. Two of these do not survive the Holm correction
+  (`analysis/multiplicity.json`): LEDGAR (adjusted p 0.45) and UNFAIR-ToS (0.056). Asked Jev's
+  per-label questions (controls section below), Luna keeps its ECtHR A, ECtHR B and UNFAIR-ToS
+  leads, and its EUR-LEX lead shrinks to −0.8 [−1.9, +0.4] (Jev − Luna, 500-document sample):
+  the EUR-LEX gap is the question wording, the other three are the models.
 - **They agree with each other more than either agrees with BERT** (Jev-Luna κ 0.63 to 0.86
-  vs 0.38 to 0.77 for either against BERT): the two zero-shot models make similar errors.
+  vs 0.32 to 0.77 for either against BERT; Jev-BERT 0.32 to 0.77, Luna-BERT 0.38 to 0.76): the
+  two zero-shot models make similar errors.
 - **Luna over-predicts less on multi-label tasks** (ECtHR A 1.44 labels per document vs Jev
   1.58 and gold 1.09; EUR-LEX 5.97 vs 10.09 and gold 5.08), consistent with its gains there.
   Jev's multi-label answers pass through the fixed 0.5 threshold; Luna chooses a set directly.
-- **Both zero-shot models trail fine-tuned BERT by 13 to 29 μ-F1 on EUR-LEX, LEDGAR, and
-  UNFAIR-ToS,** the tasks with many or rare labels, and both beat it on CaseHOLD.
+- **Both zero-shot models trail fine-tuned BERT by 12.7 to 32.5 μ-F1 on EUR-LEX, LEDGAR, and
+  UNFAIR-ToS** (Jev 12.7 to 32.5, Luna 13.3 to 28.6), the tasks with many or rare labels, and
+  both beat it on CaseHOLD.
 - **ECtHR B Luna vs BERT:** F1 ties (+0.2 [−1.6, +1.9]) but BERT gets more exact label sets
   (207 vs 145, p=0.001).
 - The 350-example sample (50/task) run beforehand separated only ECtHR B; the full run
@@ -314,8 +334,10 @@ Findings:
   borderline win; ECtHR A widens to +4.0. UNFAIR-ToS narrows from −18.8 to −3.3 μ-F1 but
   macro-F1 still trails by 12. **EUR-LEX remains far behind (−23.6 μ-F1)** even with
   per-label thresholds, consistent with its lower ranking quality (ROC-AUC 0.902 vs 0.947).
-- With per-label thresholds Jev wins 4 of 7 tasks against fine-tuned BERT (ECtHR A, ECtHR B
-  borderline, SCOTUS, CaseHOLD) and trails on 3 (EUR-LEX, LEDGAR, UNFAIR-ToS). The overall
+- With per-label thresholds Jev leads fine-tuned BERT on 3 of 7 tasks (ECtHR A, SCOTUS,
+  CaseHOLD), ties on ECtHR B (+1.4 [−0.2, +3.1]; the borderline +1.6 [0.0, +3.2] is the per-task
+  threshold) and trails on 3 (EUR-LEX, LEDGAR, UNFAIR-ToS). An earlier version counted ECtHR B as
+  a fourth win by borrowing the per-task interval. The overall
   mean gap shrinks from 7.5 to 3.2 μ-F1 and from 6.7 to 3.0 m-F1.
 - The Jev-vs-Luna and Jev-vs-BERT tables above use the 0.5 default and remain the zero-tuning
   comparison. Luna 71.3 / 63.9 falls between Jev at 0.5 and Jev with per-label thresholds.
@@ -340,9 +362,9 @@ baselines. Jev only; baselines are the papers' numbers, so there is **no paired 
 
 | Benchmark | Metric | Jev zero-shot [95% CI] | Fine-tuned BERT (published) |
 |---|---|---|---:|
-| BANKING77 | accuracy | 80.6 [79.3, 81.9] | 93.66 full; 90.03 at 30/intent; 83.42 at 10/intent |
-| CLINC150 | in-scope accuracy | 89.0 [88.2, 89.9] | 96.7 |
-| CLINC150 | out-of-scope recall | **88.1** [86.1, 90.1] | 59.2 (best in that column: Rasa, 66.0) |
+| BANKING77 | accuracy | 80.6 [79.3, 82.0] | 93.66 full; 90.03 at 30/intent; 83.42 at 10/intent |
+| CLINC150 | in-scope accuracy | 89.0 [88.1, 90.0] | 96.7 |
+| CLINC150 | out-of-scope recall | **88.1** [86.1, 90.0] | 59.2 (best in that column: Rasa, 66.0) |
 
 Jev also: BANKING77 macro-F1 79.8, Cohen's κ 0.804, top-3 accuracy 91.4, ECE 0.089;
 CLINC150 overall accuracy 88.9, κ 0.884, top-3 97.2, ECE 0.027, out-of-scope precision 81.9
@@ -436,12 +458,12 @@ Findings:
   0.085 and 0.080, worse than Jev's raw 0.035 and 0.056. Jev has no fit here. Brier tracks
   accuracy more than calibration: Jev's Brier is lower on new sources, Kev-4B's on trained.
 - **Per-source gaps are small-n (40 to 160).** Kev-4B's largest deficits to Jev on new sources
-  are MMLU (0.700 vs 0.863, n=80), the composed-rule items (0.812 to 0.875 vs 0.906 to 1.000,
+  are MMLU (0.700 vs 0.862, n=80), the composed-rule items (0.812 to 0.875 vs 0.906 to 1.000,
   n=32 each) and the deadline items (0.800 vs 0.900, n=40); its advantage is TweetEval
   offensive (0.850 vs 0.762). Jev's `return_window` items (0.600, n=40) trail both Luna
   (0.850) and Kev-4B (0.900). Full tables in `analysis/kev-suites.md`.
 - Jev's BANKING77 accuracy here (0.738, n=80, Kev's option wording) is below its full-test
-  80.6 [79.3, 81.9] from the section above. The 80-item sample's interval is about ±0.10, so
+  80.6 [79.3, 82.0] from the section above. The 80-item sample's interval is about ±0.10, so
   this is not evidence of a difference. Kev-4B (0.850) was trained on BANKING77.
 
 ## Fourth model: Kev-4B on LexGLUE and the intent suite
@@ -463,9 +485,9 @@ Findings:
 
 | Task | Kev-4B μ-F1 | Jev μ-F1 | Jev − Kev-4B Δ μ-F1 [95% CI] | Kev-4B m-F1 | Jev m-F1 | Δ m-F1 [95% CI] | Only Jev / only Kev exact | McNemar p |
 |---|---:|---:|---|---:|---:|---|---:|---:|
-| ECtHR A | 63.8 | 73.0 | +9.1 [+7.2, +11.0] | 60.5 | 71.4 | +10.9 [+7.7, +14.0] | 190 / 107 | 2e-6 |
+| ECtHR A | 63.8 | 73.0 | +9.1 [+7.2, +11.0] | 60.4 | 71.3 | +10.9 [+7.7, +14.0] | 190 / 107 | 2e-6 |
 | ECtHR B | 70.8 | 75.4 | +4.6 [+2.8, +6.3] | 65.4 | 72.6 | +7.2 [+4.1, +10.2] | 154 / 147 | 0.73 |
-| SCOTUS | 59.3 | 72.6 | +13.3 [+10.9, +15.4] | 57.7 | 62.1 | +4.4 [+1.6, +7.1] | 230 / 44 | 1e-31 |
+| SCOTUS | 59.3 | 72.6 | +13.3 [+10.9, +15.4] | 57.6 | 62.1 | +4.4 [+1.6, +7.1] | 230 / 44 | 1e-31 |
 | EUR-LEX | 37.2 | 39.1 | +1.9 [+1.6, +2.2] | 36.0 | 37.0 | +1.1 [+0.5, +1.6] | 0 / 0 | 1 |
 | LEDGAR | 68.0 | 75.3 | +7.3 [+6.6, +8.0] | 56.2 | 63.3 | +7.1 [+5.7, +8.3] | 1068 / 336 | 6e-89 |
 | UNFAIR-ToS | 69.9 | 76.4 | +6.5 [+4.6, +8.5] | 47.3 | 54.4 | +7.1 [+3.9, +10.1] | 221 / 116 | 1e-8 |
@@ -582,10 +604,10 @@ Findings:
   two options, n=32 each; deadline levels 0.325 on three, n=40; authorization 0.55, answering
   "true" 38 of 40 times), on MMLU (0.338, chance 0.25, n=80) and on PAWS (0.562, "true" 76
   of 80). It holds up where the held-out task resembles training (QNLI 0.825, SciQ 0.850,
-  TweetEval-offensive 0.787, n=80 each). On the policy families it trained on, it scores
+  TweetEval-offensive 0.788, n=80 each). On the policy families it trained on, it scores
   0.775 to 1.000 (n=40 each): it learned those families, not how to apply a stated rule.
 - **On trained sources the gap is smaller but real.** The encoder trails Kev-4B most on
-  DBpedia (0.863 vs 1.000), BoolQ (0.762 vs 0.875), BANKING77 (0.713 vs 0.850) and MNLI
+  DBpedia (0.862 vs 1.000), BoolQ (0.762 vs 0.875), BANKING77 (0.712 vs 0.850) and MNLI
   (0.800 vs 0.925), n=80 each, and is ahead on Yelp yes/no (0.925 vs 0.912), Amazon (0.600
   vs 0.588) and the quantity-limit policy items (0.975 vs 0.900, n=40), all within one or
   two answers at these sample sizes except the last.
@@ -655,13 +677,13 @@ Paired bootstrap, 1000 resamples, seed 0 (`analysis/jev-vs-llm2jev.json`,
 
 | Task | LLM2Jev μ-F1 [95% CI] | Kev-4B | Jev | Jev − LLM2Jev Δ μ-F1 [95% CI] | Kev-4B − LLM2Jev Δ μ-F1 [95% CI] | LLM2Jev m-F1 | Only Kev / only LLM2Jev exact |
 |---|---|---:|---:|---|---|---:|---:|
-| ECtHR A | 53.8 [52.1, 55.6] | 63.8 | 73.0 | +19.2 [+17.6, +20.8] | +10.1 [+8.0, +12.0] | 49.6 | 258 / 62 |
-| ECtHR B | 61.3 [60.0, 62.8] | 70.8 | 75.4 | +14.1 [+12.8, +15.4] | +9.4 [+7.7, +11.2] | 56.8 | 253 / 61 |
-| SCOTUS | 71.6 [69.3, 74.1] | 59.3 | 72.6 | +0.9 [−0.6, +2.3] | −12.4 [−14.5, −10.1] | 63.4 | 54 / 227 |
+| ECtHR A | 53.8 [52.1, 55.7] | 63.8 | 73.0 | +19.2 [+17.6, +20.8] | +10.1 [+8.0, +12.0] | 49.6 | 258 / 62 |
+| ECtHR B | 61.3 [59.9, 62.9] | 70.8 | 75.4 | +14.1 [+12.8, +15.4] | +9.4 [+7.7, +11.2] | 56.8 | 253 / 61 |
+| SCOTUS | 71.6 [69.2, 73.9] | 59.3 | 72.6 | +0.9 [−0.6, +2.3] | −12.4 [−14.5, −10.1] | 63.4 | 54 / 227 |
 | EUR-LEX | 37.1 [36.7, 37.4] | 37.2 | 39.1 | +2.0 [+1.8, +2.3] | +0.1 [−0.1, +0.4] | 33.5 | 0 / 0 |
-| LEDGAR | 71.3 [70.3, 72.1] | 68.0 | 75.3 | +4.0 [+3.4, +4.7] | −3.3 [−4.0, −2.6] | 57.9 | 569 / 896 |
-| UNFAIR-ToS | 74.3 [72.2, 76.4] | 69.9 | 76.4 | +2.1 [+0.5, +3.7] | −4.3 [−6.1, −2.4] | 49.8 | 112 / 188 |
-| CaseHOLD | 65.9 [64.2, 67.3] | 65.5 | 77.3 | +11.4 [+9.9, +12.9] | −0.4 [−1.8, +1.1] | 65.9 | 380 / 394 |
+| LEDGAR | 71.3 [70.4, 72.2] | 68.0 | 75.3 | +4.0 [+3.4, +4.7] | −3.3 [−4.0, −2.6] | 57.9 | 569 / 896 |
+| UNFAIR-ToS | 74.3 [72.1, 76.4] | 69.9 | 76.4 | +2.1 [+0.5, +3.7] | −4.3 [−6.1, −2.4] | 49.8 | 112 / 188 |
+| CaseHOLD | 65.9 [64.3, 67.5] | 65.5 | 77.3 | +11.4 [+9.9, +12.9] | −0.4 [−1.8, +1.1] | 65.9 | 380 / 394 |
 | Arithmetic mean | 62.2 | 62.1 | 69.9 | | | 53.8 | |
 | Harmonic mean | 59.1 | 59.4 | 66.3 | | | 51.5 | |
 
@@ -681,7 +703,7 @@ Paired bootstrap, 1000 resamples, seed 0 (`analysis/jev-vs-llm2jev.json`,
 
 | Benchmark | LLM2Jev [95% CI] | Kev-4B | Jev | Jev − LLM2Jev [95% CI] | Kev-4B − LLM2Jev [95% CI] | LLM2Jev ECE / mean conf. |
 |---|---|---:|---:|---|---|---|
-| BANKING77 accuracy | 67.3 [65.8, 68.9] | 84.2 | 80.6 | +13.3 [+11.8, +14.7] | +16.9 [+15.1, +18.4] | 0.577 / 0.096 |
+| BANKING77 accuracy | 67.3 [65.8, 69.0] | 84.2 | 80.6 | +13.3 [+11.8, +14.7] | +16.9 [+15.1, +18.4] | 0.577 / 0.096 |
 | CLINC150 overall accuracy | 73.3 [72.2, 74.6] | 76.8 | 88.9 | +15.5 [+14.4, +16.6] | +3.4 [+2.2, +4.6] | 0.667 / 0.066 |
 | CLINC150 in-scope accuracy | 75.8 [74.6, 77.1] | 79.4 | 89.0 | | | |
 | CLINC150 out-of-scope recall / precision | 62.1 / 80.9 | 64.9 / 69.0 | 88.1 / 81.9 | | | |
@@ -712,14 +734,15 @@ Findings:
   0.875 and 0.906) and 0.475 on deadline items (three options, n=40; Kev-4B 0.800). On the
   quantity-limit policy items it answers "held for review" for all 40 test items, whatever the
   quantity (0.300; Kev-4B 0.900), and 0.250 on the 24 dev items. It matches Kev-4B on the
-  standard datasets (QNLI 0.887 vs 0.900, PAWS 0.825 vs 0.825, SciQ 1.000 vs 1.000, n=80 each).
+  standard datasets (QNLI 0.888 vs 0.900, PAWS 0.825 vs 0.825, SciQ 1.000 vs 1.000, n=80 each).
 - **On LexGLUE the mean ties Kev-4B (62.2 vs 62.1 μ-F1) with opposite task profiles.** LLM2Jev
   leads on SCOTUS (+12.4), UNFAIR-ToS (+4.3) and LEDGAR (+3.3) and trails on ECtHR A and B
   (−10.1, −9.4); EUR-LEX and CaseHOLD are ties. Kev-4B trained on states of at most 384 tokens,
   and LLM2Jev uses the instruct model's native context, so length is a candidate explanation
   for SCOTUS (613 of 1,400 documents truncated at 48,000 characters); this run does not test
   it. Jev leads LLM2Jev on the mean by 7.7 μ-F1 (69.9 vs 62.2) and on six of seven tasks, most
-  on ECtHR A (+19.2) and CaseHOLD (+11.4); SCOTUS is a tie (+0.9 [−0.6, +2.3]). Jev also ranks
+  on ECtHR A (+19.2) and CaseHOLD (+11.4); SCOTUS is a tie (+0.9 [−0.6, +2.3]). The UNFAIR-ToS
+  lead (+2.1 [+0.5, +3.7]) does not survive the Holm correction (adjusted p 0.13). Jev also ranks
   multi-label candidates better on all four tasks (ROC-AUC +0.003 to +0.035).
 - **ECtHR errors are over-prediction at the 0.5 cut-off.** LLM2Jev predicts 2.5 and 2.8
   articles per case where gold has 1.1 and 1.4 (precision 0.40 and 0.46 at recall 0.92). The
@@ -770,7 +793,7 @@ CLINC150+OOS 5,500), scored by macro-F1.
 | Benchmark (macro-F1) | Jev ours [95% CI] | Jev index | Kev-4B ours [95% CI] | Kev-4B index | Kev 9B index | LLM2Jev ours | Clef (Cloudflare) | Clef-flash (Cloudflare) |
 |---|---|---:|---|---:|---:|---:|---:|---:|
 | BANKING77 | 79.8 [78.4, 80.9] | 79.7 | 83.8 [82.3, 84.8] | 82.2 | 84.8 | 67.5 | 94.2 | 90.9 |
-| CLINC150+OOS | 89.1 [88.3, 89.8] | 89.3 | 79.4 [78.1, 80.1] | 79.4 | 79.0 | 73.8 | 97.4 | 66.8 |
+| CLINC150+OOS | 89.1 [88.2, 89.8] | 89.3 | 79.4 [78.1, 80.1] | 79.4 | 79.0 | 73.8 | 97.4 | 66.8 |
 
 Findings:
 
@@ -785,7 +808,7 @@ Findings:
   leads Jev there by 3.5 accuracy points and trails by 12.1 on CLINC150, and Kev 9B's model card
   lists `banking77` among its datasets. Whether Clef saw these sets is unknown, so its scores
   are not evidence of zero-shot intent skill until that is ruled out.
-- **Clef-flash's CLINC150+OOS score (66.8) is 30.7 points below Clef's**, against a 3.3-point
+- **Clef-flash's CLINC150+OOS score (66.8) is 30.6 points below Clef's**, against a 3.3-point
   gap on BANKING77. Neither the post nor the card explains it; out-of-scope handling is a
   candidate, since that is where CLINC150 differs from BANKING77. Not tested without
   per-item outputs.
@@ -842,12 +865,12 @@ Paired bootstrap, 1000 resamples, seed 0 (`analysis/jev-vs-clef-flash.json`,
 
 | Task | Clef-flash μ-F1 [95% CI] | Jev | Kev-4B | Jev − Clef-flash Δ μ-F1 [95% CI] | Kev-4B − Clef-flash Δ μ-F1 [95% CI] | Clef-flash m-F1 | Only Jev / only Clef-flash exact | McNemar p |
 |---|---|---:|---:|---|---|---:|---:|---:|
-| ECtHR A | 69.6 [67.2, 71.7] | 73.0 | 63.8 | +3.4 [+1.4, +5.2] | −5.8 [−7.8, −3.6] | 69.0 | 114 / 136 | 0.18 |
-| ECtHR B | 75.4 [73.6, 77.2] | 75.4 | 70.8 | −0.0 [−1.8, +1.8] | −4.7 [−6.3, −3.0] | 70.9 | 99 / 224 | 3e-12 |
-| SCOTUS | 70.6 [68.4, 72.7] | 72.6 | 59.3 | +2.0 [+0.3, +3.7] | −11.3 [−13.2, −9.4] | 62.1 | 92 / 64 | 0.03 |
-| EUR-LEX | 39.2 [38.8, 39.6] | 39.1 | 37.2 | −0.2 [−0.5, +0.2] | −2.0 [−2.4, −1.7] | 37.9 | 0 / 0 | 1 |
-| LEDGAR | 72.8 [71.9, 73.6] | 75.3 | 68.0 | +2.5 [+1.9, +3.1] | −4.8 [−5.5, −4.0] | 61.5 | 577 / 322 | 1e-17 |
-| UNFAIR-ToS | 79.7 [77.6, 81.6] | 76.4 | 69.9 | −3.3 [−4.7, −1.9] | −9.8 [−11.8, −7.9] | 56.8 | 45 / 113 | 6e-8 |
+| ECtHR A | 69.6 [67.3, 71.9] | 73.0 | 63.8 | +3.4 [+1.4, +5.2] | −5.8 [−7.8, −3.6] | 69.0 | 114 / 136 | 0.18 |
+| ECtHR B | 75.4 [73.5, 77.1] | 75.4 | 70.8 | −0.0 [−1.8, +1.8] | −4.7 [−6.3, −3.0] | 70.9 | 99 / 224 | 3e-12 |
+| SCOTUS | 70.6 [68.1, 73.0] | 72.6 | 59.3 | +2.0 [+0.3, +3.7] | −11.3 [−13.2, −9.4] | 62.1 | 92 / 64 | 0.03 |
+| EUR-LEX | 39.2 [38.8, 39.7] | 39.1 | 37.2 | −0.2 [−0.5, +0.2] | −2.0 [−2.4, −1.7] | 37.9 | 0 / 0 | 1 |
+| LEDGAR | 72.8 [71.9, 73.7] | 75.3 | 68.0 | +2.5 [+1.9, +3.1] | −4.8 [−5.5, −4.0] | 61.5 | 577 / 322 | 1e-17 |
+| UNFAIR-ToS | 79.7 [77.7, 81.7] | 76.4 | 69.9 | −3.3 [−4.7, −1.9] | −9.8 [−11.8, −7.9] | 56.8 | 45 / 113 | 6e-8 |
 | CaseHOLD | 70.8 [69.3, 72.2] | 77.3 | 65.5 | +6.5 [+5.3, +7.9] | −5.3 [−6.8, −3.8] | 70.8 | 400 / 165 | 2e-23 |
 | Arithmetic mean | 68.3 | 69.9 | 62.1 | | | 61.3 | | |
 | Harmonic mean | 65.0 | 66.3 | 59.4 | | | 58.8 | | |
@@ -897,17 +920,23 @@ training split, its accuracy on 1,000 random training queries exceeds its test a
 least 2 points on BANKING77); Jev is the control. `clef_bench/train_probe.py` sends the same
 requests (`jev-bench run` refuses training-split data by design);
 `analysis/clef-flash-train-probe.json`. 2,000 / 2,000 queries per model, none failed.
-Intervals: 1000 bootstrap resamples, train and test resampled independently.
+Intervals: 1000 bootstrap resamples over queries sorted by id; train (seed 1) and test (seed 0)
+resampled independently, both models on the same draws, so the difference-in-differences is
+paired by query and the test intervals equal those of the intent sections. (Until the
+2026-11-05 audit the script resampled in ledger order, which is async completion order: the two
+models' draws then matched the same query at only 78 of 1,000 BANKING77 training positions, so
+the "paired" difference-in-differences was in effect unpaired; it gave [+1.0, +7.2] and test
+intervals that differed from the intent sections.)
 
 | Model, dataset | Train accuracy [95% CI] (n=1,000) | Test accuracy [95% CI] | Train − test [95% CI] |
 |---|---|---|---|
-| Clef-flash, BANKING77 | 96.0 [94.7, 97.2] | 95.8 [95.1, 96.6] | +0.2 [−1.3, +1.6] |
-| Clef-flash, CLINC150 | 99.3 [98.8, 99.7] | 98.3 [97.9, 98.6] | +1.0 [+0.4, +1.6] |
-| Jev, BANKING77 | 76.8 [74.2, 79.4] | 80.6 [79.4, 82.0] | −3.8 [−6.9, −1.0] |
-| Jev, CLINC150 | 89.9 [88.1, 91.7] | 88.9 [88.0, 89.7] | +1.0 [−1.0, +3.0] |
+| Clef-flash, BANKING77 | 96.0 [94.7, 97.2] | 95.8 [95.1, 96.5] | +0.2 [−1.3, +1.6] |
+| Clef-flash, CLINC150 | 99.3 [98.8, 99.8] | 98.3 [97.9, 98.6] | +1.0 [+0.4, +1.7] |
+| Jev, BANKING77 | 76.8 [73.9, 79.3] | 80.6 [79.3, 82.0] | −3.8 [−6.9, −0.9] |
+| Jev, CLINC150 | 89.9 [88.1, 91.5] | 88.9 [88.0, 89.7] | +1.0 [−0.9, +2.9] |
 
-Difference-in-differences (Clef-flash gap − Jev gap): BANKING77 +4.0 [+1.0, +7.2]; CLINC150
-0.0 [−2.0, +2.1].
+Difference-in-differences (Clef-flash gap − Jev gap): BANKING77 +4.0 [+1.2, +6.9]; CLINC150
+0.0 [−1.8, +1.9]. The reading below is unchanged by the pairing fix.
 
 - **The prediction is refuted on the raw gap.** Clef-flash scores the same on BANKING77
   training and test queries (+0.2), not 2 or more points higher.
@@ -916,7 +945,10 @@ Difference-in-differences (Clef-flash gap − Jev gap): BANKING77 +4.0 [+1.0, +7
   not class-balanced like the test split), so the rule reads only the difference-in-differences,
   and it excludes zero. But Clef-flash sits at 96% accuracy, where a 3.8-point difficulty drop
   has less room to show, so the difference-in-differences overstates its relative advantage
-  by an unknown amount. CLINC150: not indicated (Clef-flash's +1.0 gap equals Jev's).
+  by an unknown amount. CLINC150: not indicated (Clef-flash's +1.0 gap equals Jev's). CLINC150
+  fell in a cell the pre-registered rule does not define: Jev's gap covers zero, Clef-flash's
+  excludes it, and the difference-in-differences covers zero. "Not indicated" there is a post-hoc
+  reading (the DiD shows no relative advantage), not an outcome the rule specified.
 - **The probe does not settle exposure either way.** Training on both splits, or on paraphrases
   of them, would leave no gap. What stands without it: zero-shot-protocol scores above
   published full-data fine-tuning (BANKING77 95.8 vs 93.66 accuracy), and correct answers on
@@ -930,7 +962,7 @@ Findings:
 - **On LexGLUE Clef-flash sits between Jev and Kev-4B**: 68.3 mean μ-F1 against Jev's 69.9 and
   Kev-4B's 62.1. It trails Jev on CaseHOLD (−6.5), ECtHR A (−3.4), LEDGAR (−2.5) and SCOTUS
   (−2.0), leads on UNFAIR-ToS (+3.3), and ties on ECtHR B and EUR-LEX, every interval clear of
-  zero except the ties. It beats Kev-4B on all seven tasks by 2.0 to 11.3 points. Jev ranks
+  zero except the ties; the SCOTUS gap does not survive the Holm correction (adjusted p 0.29). It beats Kev-4B on all seven tasks by 2.0 to 11.3 points. Jev ranks
   ECtHR A labels slightly better (ROC-AUC +0.008); the other multi-label rankings tie.
 - **It is better calibrated than Jev on five of seven LexGLUE tasks with no temperature fit**,
   most on LEDGAR (ECE 0.030 vs 0.116) and SCOTUS (0.080 vs 0.148), consistent with the Brier
@@ -948,7 +980,7 @@ Findings:
   The decision-v7 test lead comes mostly from sources Clef-flash may share with Kev's training
   data: BANKING77 0.938 vs 0.738 (n=80), AG News yes/no 0.938 vs 0.844 (n=160) and the
   return-window policy items 0.925 vs 0.600 (n=40). On held-out MMLU it scores 0.750 against
-  Jev's 0.863 (n=80), in line with the model card's deficits on knowledge benchmarks.
+  Jev's 0.862 (n=80), in line with the model card's deficits on knowledge benchmarks.
 - Limits: one serving configuration (bf16, fla kernels, H100, one request per forward pass), one
   run; our prompts (the same as Jev's), not Cloudflare's harness; `max_length` raised from the
   release default; the training-split probe is one sample of 1,000 per dataset with a
@@ -993,8 +1025,8 @@ Paired bootstrap, 1000 resamples, seed 0 (`analysis/jev-vs-elephant.json`,
 | ECtHR A | 72.9 | 69.0 | +0.0 [−1.4, +1.5] | −9.1 [−11.1, −7.1] | 0.096 / 0.082 |
 | ECtHR B | 80.2 | 75.5 | −4.8 [−5.9, −3.7] | −9.4 [−11.0, −7.9] | 0.075 / 0.096 |
 | SCOTUS | 71.6 | 63.8 | +0.9 [−0.7, +2.5] | −12.4 [−14.2, −10.4] | 0.098 / 0.148 |
-| EUR-LEX | 40.8 | 36.1 | −1.7 [−2.1, −1.3] | −3.6 [−4.0, −3.2] | 0.092 / 0.099 |
-| LEDGAR | 76.1 | 63.7 | −0.7 [−1.3, −0.1] | −8.0 [−8.8, −7.2] | 0.094 / 0.116 |
+| EUR-LEX | 40.8 | 36.1 | −1.7 [−2.0, −1.3] | −3.6 [−4.0, −3.2] | 0.092 / 0.099 |
+| LEDGAR | 76.0 | 63.7 | −0.7 [−1.3, −0.1] | −8.0 [−8.8, −7.2] | 0.094 / 0.116 |
 | UNFAIR-ToS | 73.2 | 49.7 | +3.2 [+1.8, +4.6] | −3.2 [−5.1, −1.3] | 0.051 / 0.073 |
 | CaseHOLD | 85.4 | 85.4 | −8.1 [−9.4, −6.8] | −19.9 [−21.4, −18.3] | 0.015 / 0.038 |
 | Mean of 7 | 71.5 | 63.3 | Jev 69.9 / 62.6 | Kev-4B 62.1 / 55.5 | |
@@ -1017,7 +1049,7 @@ The mean row is the unweighted per-task average, with no interval of its own.
 | transfer-v4 dev | 0.825 [0.796, 0.857] | +0.030 [0.002, 0.060] | −0.011 [−0.049, 0.025] |
 | transfer-v4 test | 0.861 [0.832, 0.890] | +0.015 [−0.014, 0.040] | −0.023 [−0.051, 0.002] |
 | decision-v7 dev | 0.853 [0.831, 0.875] | −0.008 [−0.024, 0.008] | +0.018 [−0.001, 0.038] |
-| decision-v7 test | 0.843 [0.821, 0.862] | −0.007 [−0.026, 0.012] | +0.023 [0.003, 0.047] |
+| decision-v7 test | 0.842 [0.821, 0.862] | −0.008 [−0.026, 0.012] | +0.023 [0.003, 0.047] |
 
 Adding elephant-1 left every earlier entry of `analysis/kev-suites.json` unchanged (checked by
 comparing against `HEAD`).
@@ -1027,13 +1059,16 @@ Findings:
 - **On LexGLUE elephant-1 averages above Jev**: 71.5 mean μ-F1 against Jev's 69.9, and above
   Kev-4B on all seven tasks by 3.2 to 19.9 points (every interval clear of zero). Per task it
   is ahead of Jev on CaseHOLD (+8.1), ECtHR B (+4.8), EUR-LEX (+1.7) and LEDGAR (+0.7), behind
-  on UNFAIR-ToS (−3.2), and tied on ECtHR A and SCOTUS (intervals cover zero). The mean has no
+  on UNFAIR-ToS (−3.2), and tied on ECtHR A and SCOTUS (intervals cover zero). The LEDGAR lead
+  does not survive the Holm correction (adjusted p 0.22). The mean has no
   interval, so "above Jev" is a point estimate of 1.6 points supported by the per-task
   intervals, not a tested difference.
-- **Macro-F1 orders the tasks differently**: against Jev, elephant-1 is ahead on ECtHR B
-  (+2.9 [0.2, 5.6]) and CaseHOLD (+8.1), behind on ECtHR A (−2.3 [0.0, 4.7] in Jev's favour),
-  EUR-LEX (−0.9) and UNFAIR-ToS (−4.7 [2.2, 7.0]), and tied on SCOTUS and LEDGAR. UNFAIR-ToS
-  is the one task where Jev leads on both averages.
+- **Macro-F1 orders the tasks differently** (elephant-1 − Jev, macro-F1 points): ahead on ECtHR
+  B (+2.9 [+0.2, +5.6]) and CaseHOLD (+8.1 [+6.8, +9.4]), behind on ECtHR A (−2.3 [−4.7, −0.0],
+  upper end −0.02), EUR-LEX (−0.9 [−1.5, −0.4]) and UNFAIR-ToS (−4.7 [−7.0, −2.2]), and tied on
+  SCOTUS and LEDGAR. UNFAIR-ToS is the one task where Jev leads on both averages. (The first
+  version of this bullet paired elephant-1 − Jev point estimates with Jev − elephant-1
+  intervals.)
 - **Multi-label ranking is slightly better than Jev's** on the four multi-label tasks by ROC-AUC
   (ECtHR A +0.005 and EUR-LEX +0.013 with clear intervals; ECtHR B +0.004 and UNFAIR-ToS +0.001
   with intervals that touch zero).
@@ -1124,9 +1159,26 @@ ECtHR B 0.942 vs 0.948, EUR-LEX 0.882 vs 0.889, UNFAIR-ToS 0.982 vs 0.990.
   after 13 s with no ledger writes.
 - Refusals (docs do not define them; repeated calls are identical): 179 refused predicate
   answers in 69 rows, of which 177 answers in 67 rows are UNFAIR-ToS (4.2% of its rows) and 2 are
-  ECtHR A. Refused predicates are imputed as not applied (p = 0). Sensitivity: dropping the 67
-  UNFAIR-ToS rows gives Decisions 82.1, Jev 75.8, Luna chat 78.2 micro-F1; paired Decisions minus
-  Jev +6.3 [4.6, 8.0], the same as with them, so the imputation does not drive that task.
+  ECtHR A. Refused predicates are imputed as not applied (p = 0), so those rows stay in F1,
+  ROC-AUC, ECE and Brier, whereas a System One failure would remove its row. Sensitivity on both
+  tasks (`analysis/decisions_refusal_sensitivity.py` → `analysis/decisions-refusal-sensitivity.json`;
+  Jev − Decisions, paired, 1,000 resamples, seed 0):
+
+  | Task, treatment | n | Δ μ-F1 [95% CI] | Δ m-F1 [95% CI] | Δ macro ROC-AUC [95% CI] | Decisions ECE / Brier |
+  |---|---:|---|---|---|---|
+  | ECtHR A, p = 0 (as reported) | 1000 | −2.8 [−4.8, −0.9] | +0.9 [−3.1, +4.8] | +0.012 [+0.004, +0.025] | 0.026 / 0.0379 |
+  | ECtHR A, rows dropped | 998 | −3.0 [−5.0, −1.0] | +0.9 [−3.1, +4.6] | +0.011 [+0.004, +0.023] | 0.026 / 0.0377 |
+  | ECtHR A, p = 1 | 1000 | −3.0 [−4.9, −1.1] | +0.8 [−3.1, +4.7] | +0.011 [+0.003, +0.024] | 0.026 / 0.0377 |
+  | UNFAIR-ToS, p = 0 (as reported) | 1607 | −6.3 [−8.1, −4.7] | −2.3 [−5.6, +1.0] | +0.009 [−0.000, +0.024] | 0.025 / 0.0197 |
+  | UNFAIR-ToS, rows dropped | 1540 | −6.3 [−8.2, −4.7] | −2.1 [−5.4, +1.3] | +0.009 [−0.000, +0.022] | 0.025 / 0.0205 |
+  | UNFAIR-ToS, p = 1 | 1607 | +0.2 [−2.2, +2.5] | +10.4 [+6.4, +14.0] | +0.022 [+0.012, +0.036] | 0.038 / 0.0335 |
+
+  Dropping the refused rows changes nothing that the text relies on, on either task. The
+  opposite bound (every refused label applied) erases Decisions' UNFAIR-ToS micro-F1 lead and
+  reverses macro-F1, so that lead holds on the sentences Decisions answered and under "refusal
+  means not applied", not under every reading of a refusal. ECtHR A (2 refused answers) is
+  insensitive to all three. The first version of this check covered UNFAIR-ToS F1 only, reported
+  Decisions − Jev with the bootstrap mean as the point estimate, and resampled in ledger order.
 
 Micro-F1 with 95% bootstrap CI (1,000 resamples, seed 0) and paired comparison with Jev
 (`analysis/jev-vs-decisions-luna.json`; Δ = Jev − Decisions, the sign convention of every other
@@ -1137,11 +1189,11 @@ Jev, so its signs were the reverse of the report's.)
 
 | Task | n | Decisions μ-F1 [95% CI] | Decisions m-F1 | Jev μ-F1 | Luna chat μ-F1 | Jev − Decisions Δ μ-F1 [95% CI] | Δ m-F1 [95% CI] | McNemar p |
 |---|---:|---|---:|---:|---:|---|---|---:|
-| ECtHR A | 1000 | 75.8 [73.7, 77.9] | 70.4 | 73.0 | 78.9 | −2.8 [−4.8, −0.9] | +0.9 [−3.1, +4.8] | 7e-12 |
-| ECtHR B | 1000 | 80.9 [79.4, 82.4] | 76.6 | 75.4 | 78.8 | −5.5 [−6.7, −4.4] | −4.0 [−6.7, −1.5] | 1e-20 |
-| SCOTUS | 1400 | 68.1 [65.9, 70.5] | 60.4 | 72.6 | 68.3 | +4.4 [+2.5, +6.2] | +1.7 [−1.4, +4.8] | 3e-6 |
-| EUR-LEX | 5000 | 38.6 [38.3, 39.0] | 37.8 | 39.1 | 42.9 | +0.4 [+0.2, +0.7] | −0.8 [−1.4, −0.3] | n/a (0 exact) |
-| LEDGAR | 9998 | 73.8 [72.9, 74.7] | 61.2 | 75.3 | 74.7 | +1.6 [+1.0, +2.1] | +2.1 [+1.0, +3.0] | 2e-7 |
+| ECtHR A | 1000 | 75.8 [73.6, 78.2] | 70.4 | 73.0 | 78.9 | −2.8 [−4.8, −0.9] | +0.9 [−3.1, +4.8] | 7e-12 |
+| ECtHR B | 1000 | 80.9 [79.4, 82.2] | 76.6 | 75.4 | 78.8 | −5.5 [−6.7, −4.4] | −4.0 [−6.7, −1.5] | 1e-20 |
+| SCOTUS | 1400 | 68.1 [65.6, 70.6] | 60.4 | 72.6 | 68.3 | +4.4 [+2.5, +6.2] | +1.7 [−1.4, +4.8] | 3e-6 |
+| EUR-LEX | 5000 | 38.6 [38.3, 38.9] | 37.8 | 39.1 | 42.9 | +0.4 [+0.2, +0.7] | −0.8 [−1.4, −0.3] | n/a (0 exact) |
+| LEDGAR | 9998 | 73.8 [72.9, 74.6] | 61.2 | 75.3 | 74.6 | +1.6 [+1.0, +2.1] | +2.1 [+1.0, +3.0] | 2e-7 |
 | UNFAIR-ToS | 1607 | 82.7 [80.9, 84.6] | 56.7 | 76.4 | 78.8 | −6.3 [−8.1, −4.7] | −2.3 [−5.6, +1.0] | 2e-13 |
 | CaseHOLD | 3600 | 73.5 [72.0, 74.9] | 73.5 | 77.3 | 76.8 | +3.8 [+2.6, +5.1] | +3.8 [+2.6, +5.1] | 2e-8 |
 
@@ -1156,7 +1208,8 @@ Probability quality, Decisions vs Jev. Macro ROC-AUC with paired bootstrap of Je
 in the 2026-11-04 audit, the first version gave point estimates only): ECtHR A 0.962 vs 0.974,
 +0.012 [+0.004, +0.025]; ECtHR B 0.944 vs 0.951, +0.008 [+0.001, +0.014]; EUR-LEX 0.879 vs 0.902,
 +0.022 [+0.020, +0.026]; UNFAIR-ToS 0.983 vs 0.992, +0.009 [−0.000, +0.024]. Refused UNFAIR-ToS
-labels are imputed as p = 0, which lowers Decisions' AUC there by an unknown amount. ECE
+labels are imputed as p = 0; dropping those rows leaves the AUC difference at +0.009 [−0.000,
++0.022] (sensitivity table above). ECE
 (10 bins) is lower for Decisions on the four multi-label tasks (0.026 vs 0.082, 0.044 vs 0.096,
 0.090 vs 0.099, 0.025 vs 0.073) and Brier is lower on three (EUR-LEX is higher, 0.0886 vs
 0.0701). On the three single-label tasks Decisions has higher ECE (SCOTUS 0.191 vs 0.148, LEDGAR
@@ -1164,7 +1217,7 @@ labels are imputed as p = 0, which lowers Decisions' AUC there by an unknown amo
 
 - Reading: against Jev, Decisions is ahead on ECtHR A, ECtHR B and UNFAIR-ToS micro-F1 (intervals
   exclude zero) and behind on SCOTUS, LEDGAR, CaseHOLD and EUR-LEX (the EUR-LEX gap is 0.4
-  points). Macro-F1 intervals cover zero on ECtHR A, SCOTUS and UNFAIR-ToS. Ranking quality by
+  points). The ECtHR A lead does not survive the Holm correction (adjusted p 0.078). Macro-F1 intervals cover zero on ECtHR A, SCOTUS and UNFAIR-ToS. Ranking quality by
   macro ROC-AUC is below Jev's on ECtHR A, ECtHR B and EUR-LEX (intervals exclude zero); on
   UNFAIR-ToS the interval reaches zero. Decisions' probabilities have lower ECE than Jev's on the
   four multi-label tasks (ECE does not depend on the 0.5 cut-off). The smoke quoted micro
@@ -1173,13 +1226,15 @@ labels are imputed as p = 0, which lowers Decisions' AUC there by an unknown amo
   (`analysis/lunachat-vs-decisions.json`; Δ = chat − Decisions, micro-F1, 95% bootstrap CI):
   ECtHR A +3.1 [+1.2, +4.8], ECtHR B −2.2 [−3.4, −0.9], SCOTUS +0.1 [−1.6, +1.9], EUR-LEX +4.3
   [+3.9, +4.8], LEDGAR +0.9 [+0.3, +1.5], UNFAIR-ToS −3.9 [−5.7, −2.2], CaseHOLD +3.3 [+1.9, +4.7].
-  Chat Luna leads on four tasks, Decisions on two, SCOTUS is tied. Macro-F1 deltas disagree in
+  Chat Luna leads on four tasks, Decisions on two, SCOTUS is tied (the LEDGAR lead does not
+  survive the Holm correction, adjusted p 0.099). Macro-F1 deltas disagree in
   sign with micro-F1 on UNFAIR-ToS (+4.3 [+1.5, +7.6]). Chat Luna has no probabilities, so the
   calibration comparison above is Jev only.
 - The smoke's Decisions-over-Jev lead on LEDGAR (+10 at n = 50) did not hold; at n = 9,998
   Jev leads by 1.6. The smoke ordering is not predictive on LEDGAR or SCOTUS.
-- UNFAIR-ToS refusal sensitivity is in `analysis/decisions-unfair-sensitivity.json`
-  (`analysis/decisions_unfair_sensitivity.py`), the source of the figures above.
+- Refusal sensitivity for both affected tasks is in `analysis/decisions-refusal-sensitivity.json`
+  (`analysis/decisions_refusal_sensitivity.py`), which replaces the UNFAIR-ToS-only
+  `decisions_unfair_sensitivity.py`.
 - Limits: one run, one seed; Decisions is a different model from the Luna chat row; `gpt-6-luna`
   is the confirmed Decisions model (repo owner, 2026-11-05; all 23,610 ledger responses report
   `model: gpt-6-luna`, VERIFIED), and no other endpoint model was run, so there is no
@@ -1188,6 +1243,100 @@ labels are imputed as p = 0, which lowers Decisions' AUC there by an unknown amo
   criterion sentences System One models receive (see the smoke section); no prediction or
   decision rule was committed before the full run, unlike the Clef-flash probe, so these
   results are exploratory.
+
+## Controls: redraw, context and prompt (2026-11-05)
+
+Three confounds raised in the 2026-11-05 audit, tested with new runs on the same documents.
+Predictions and decision rules were written before any full control run
+(`analysis/PREREG-controls.md`; only 10-document cost smokes preceded it). The repo owner asked
+for a single commit at the end, so the pre-registration is committed together with the results
+and git cannot date it; the file's last modification is 2026-11-06 01:53:30 UTC and the first
+control record in any ledger 01:53:42 UTC (`completed_at`), and it was not edited afterwards. Paired bootstrap of
+μ-F1 differences, `jev_test.analysis.paired`, 1,000 resamples, seed 0, ids sorted
+(`scripts/control_analyses.sh` → `analysis/control-*.json`). EUR-LEX rows use a 500-document
+sample (seed 42, `scripts/prepare_control_subset.py`), the same ids in every arm.
+
+Runs, all 2026-11-05, OpenRouter, 0 failures, one resolved model each:
+
+| Arm | Run | Data | Requests | Cost |
+|---|---|---|---:|---:|
+| J1, Jev redraw | `results/jev-redraw` | `data/control-full` (ECtHR A/B, SCOTUS, UNFAIR-ToS, EUR-LEX 500) | 5,507 | $1.20 |
+| JB, Jev at BERT's context | `results/jev-bertctx` | `data/control-bertctx` (ECtHR A/B, SCOTUS, EUR-LEX 500) | 3,900 | $0.75 |
+| L1, Luna redraw (`chat`) | `results/luna-redraw` | `data/multilabel-control` (ECtHR A/B, UNFAIR-ToS, EUR-LEX 500) | 4,107 | $3.66 |
+| LP, Luna with Jev's question (`chat-perlabel`) | `results/luna-perlabel` | `data/multilabel-control` | 4,107 | $5.17 |
+
+Jev resolved `jev-1.13-20260917` (as in `results/full-test`), Luna `openai/gpt-5.6-luna`. The
+Jev redraw was killed at 1,260 requests and resumed (1,260 checkpointed + 4,247 pending, 5,507
+recorded calls, no duplicates); both Luna arms were stopped and resumed once to raise
+concurrency. Pre-run estimates: $1.21, $0.81, $3.58, $5.16 (from 10-document smokes,
+`results/*-smoke`, $0.11).
+
+**BERT's context.** `bert/context_matched.py` cuts each document to the text the fine-tuned
+BERT baseline reads, from upstream LexGLUE at `419a49d` (`experiments/*.py` defaults, no
+overrides in `bert/lexglue_modal.py`, VERIFIED by reading the scripts): ECtHR, the first 64
+fact paragraphs at 128 bert-base-uncased tokens each; SCOTUS, `re.split('\n{2,}')` into at most
+64 segments of 128 tokens; EUR-LEX and LEDGAR, 512 tokens; UNFAIR-ToS, 128; CaseHOLD, 256 per
+(context, holding) pair with `longest_first`. Kept characters (`analysis/bertctx-context.json`):
+ECtHR 70.8% (835 of 1,000 documents shortened), SCOTUS 32.4% (1,399 of 1,400), EUR-LEX 18.8%
+(3,253 of 5,000), LEDGAR 98.2%, UNFAIR-ToS 98.4%, CaseHOLD 98.5%; the last three were not run.
+A rebuild reproduced every task file's SHA-256.
+
+**Jev returns different probabilities for identical requests.** Of 37 smoke requests
+byte-identical to `results/full-test`, 32 came back with different probabilities. Over the full
+redraw, mean |Δp| per label is 0.002 to 0.006, the 99th percentile 0.03 to 0.05, the largest
+0.16, and 1.1% to 4.7% of documents change their prediction (EUR-LEX 22%, 110 of 500, where a
+document carries 100 labels).
+
+Jev:
+
+| Task | J1 − J0 (redraw) | JB − J1 (BERT's context) | JB − BERT | J0 − BERT (full test, above) |
+|---|---|---|---|---|
+| ECtHR A | +0.2 [−0.2, +0.7] | −0.8 [−1.5, −0.0] | +2.1 [−0.1, +4.3] | +2.7 [+0.5, +4.8] |
+| ECtHR B | −0.2 [−0.6, +0.2] | −0.3 [−0.8, +0.3] | −3.6 [−5.4, −2.0] | −3.2 [−4.9, −1.4] |
+| SCOTUS | +0.1 [−0.4, +0.6] | −0.9 [−1.8, −0.1] | +4.6 [+1.7, +7.4] | +5.4 [+2.5, +8.1] |
+| EUR-LEX (500) | +0.0 [−0.2, +0.2] | +0.6 [+0.0, +1.1] | −31.8 [−33.8, −29.8] | −32.5 [−33.1, −31.9] (5,000) |
+| UNFAIR-ToS | +0.1 [−0.4, +0.5] | not run | not run | −18.8 [−20.9, −16.7] |
+
+Luna:
+
+| Task | L1 − L0 (redraw) | LP − L1 (Jev's question) | Jev − L1 | Jev − LP |
+|---|---|---|---|---|
+| ECtHR A | +0.6 [−0.4, +1.8] | +0.1 [−1.1, +1.2] | −6.5 [−8.1, −5.0] | −6.6 [−8.1, −5.0] |
+| ECtHR B | −0.5 [−1.4, +0.4] | +0.9 [−0.0, +1.7] | −2.9 [−4.0, −1.6] | −3.7 [−4.8, −2.6] |
+| UNFAIR-ToS | +0.0 [−1.2, +1.1] | +0.6 [−0.8, +2.1] | −2.4 [−4.0, −0.8] | −3.0 [−4.4, −1.6] |
+| EUR-LEX (500) | +0.2 [−0.5, +1.1] | −2.8 [−4.0, −1.6] | −3.5 [−5.0, −2.2] | −0.8 [−1.9, +0.4] |
+
+Against the pre-registration:
+
+- **P1 (redraw within ±1.0 μ-F1, intervals cover zero): held** for both models on every task
+  (largest |Δ| 0.6). Label sets are not stable even so: Luna's two runs give identical sets on
+  79% to 94% of ECtHR and UNFAIR-ToS documents and 25% of EUR-LEX ones. Macro-F1 moves more:
+  Jev ECtHR B −0.9 [−2.3, −0.0] (upper end −0.003, so R1 applies there), Luna ECtHR B −3.0
+  [−7.2, +1.3]. By R1, macro-F1 differences on ECtHR B under about 1 point (Jev) or 3 points
+  (Luna) should not be read as model differences; the μ-F1 comparisons are not affected.
+- **P2 (context lowers Jev's score): partly refuted.** SCOTUS −0.9 [−1.8, −0.1] has the
+  predicted sign but is smaller than the predicted −1 to −5; ECtHR A −0.8 and ECtHR B −0.3 are in
+  range; EUR-LEX goes the other way, +0.6 [+0.0, +1.1]: Jev does slightly better on EUR-LEX's
+  first 512 tokens than on up to 48,000 characters.
+- **R2: Jev's SCOTUS lead over BERT holds at BERT's context** (+4.6 [+1.7, +7.4]); its ECtHR A
+  lead does not (+2.1 [−0.1, +4.3]), so by the rule that lead is attributed to context. (It also
+  does not survive the Holm correction, below.) The macro-F1 lead on ECtHR A stays clear at
+  BERT's context (+7.3 [+3.2, +11.4]).
+- **P3 (Jev's question moves Luna by at most ±3 μ-F1, recall up and precision down): size held,
+  mechanism only on EUR-LEX.** There Luna predicts 10.1 labels per document instead of 6.2
+  (recall 0.48 → 0.60, precision 0.40 → 0.31); on ECtHR and UNFAIR-ToS the number of labels does
+  not change (ECtHR A 1.44 → 1.44, ECtHR B 1.97 → 1.93, UNFAIR-ToS 0.32 → 0.32).
+- **R3: Luna's EUR-LEX lead is attributed to the question wording.** Asked Jev's per-label
+  questions, Luna loses 2.8 [−4.0, −1.6] on EUR-LEX and Jev − LP is −0.8 [−1.9, +0.4]. Luna's
+  leads on ECtHR A (−6.6), ECtHR B (−3.7) and UNFAIR-ToS (−3.0) persist under Jev's question,
+  so those are differences between the models, not between the prompts. Per-label questions
+  raise Luna's ECtHR B macro-F1 (+4.2 [+1.5, +7.4]) but that is within Luna's own redraw
+  spread on that task (−3.0 [−7.2, +1.3]).
+- Limits: one redraw per model, so the redraw is a two-point spread, not a variance estimate;
+  EUR-LEX is a 500-document sample; the context control is Jev only (Luna and the other models
+  were not rerun at BERT's context); `chat-perlabel` asks all of a document's per-label
+  questions in one call with one JSON object, where System One sends them as separate typed
+  questions in one request.
 
 ## Audit 2026-11-04: reporting and method errors in the elephant-1 and Decisions commits
 
@@ -1198,8 +1347,8 @@ results were averaged, signed, compared and described.
 
 | # | Where | Error | Fix |
 |---|---|---|---|
-| 1 | `report/build_report.py` since `5d11864` | Means averaged per-task scores already rounded to one decimal; elephant-1 showed 71.4 in the report and 71.5 in README/RESULTS (unrounded 71.456 vs 71.443). The check allowed ±0.1, so it passed. | Means from unrounded metrics; the check is now exact equality. |
-| 2 | Report footer since `5d11864` | "results as of commit 563b9cf" was hard-coded and two model sections out of date. | Stamp is the last commit that changed `analysis/`. |
+| 1 | `report/build_report.py` since `67bad51` (visible at `5d11864`) | Means averaged per-task scores already rounded to one decimal, and the check allowed ±0.1 (`# RESULTS.md means are computed from unrounded scores`); the first seven models rounded to the same tenth either way, then elephant-1 (`5d11864`) showed 71.4 in the report (`-9.3` / `-1.5` mean diffs in `table-el`) and 71.5 in README/RESULTS (unrounded 71.456 vs 71.443). | Means from unrounded metrics; the check is now exact equality. |
+| 2 | Report footer since `5d11864` (`COMMIT` hard-coded since `67bad51`) | `COMMIT` was updated by hand through `eeb55e2`, then left at `"563b9cf"` across `5d11864` and `3b793ad` (two model sections out of date). | Stamp is the last commit that changed `analysis/`. |
 | 3 | RESULTS, Decisions section | Δ = Decisions − Jev, the reverse of every other section and of the report's "Jev − Decisions" column; the same numbers appeared with opposite signs. | Δ = Jev − Decisions (and chat − Decisions). |
 | 4 | RESULTS, README, report | "Same instructions and label descriptions as Jev" for Decisions; the multi-label `predicate` requests omit the true/false criterion sentences System One `noul` questions send. | Stated as a request difference in each place. |
 | 5 | RESULTS, report | "At the 0.5 threshold its calibration error is lower"; ECE does not depend on the cut-off. | Reworded. |
@@ -1217,9 +1366,6 @@ Not fixed, recorded here:
   the Clef-flash probe (`4f723e1`). Their comparisons are exploratory.
 - The Decisions protocol hash was re-pinned by hand mid-run (documented in the section above and
   in the manifest's `repins`); per-record request hashes confirm the request bodies did not change.
-- The opening tables of this file use published BERT means and 300 bootstrap resamples; the report
-  uses the reproduced BERT and 1,000 resamples, so the two give slightly different Jev intervals
-  (ECtHR A lower bound 71.2 here, 71.0 in the report).
 - "The docs do not define refusals" is a claim about OpenAI's documentation that was not
   re-checked in this audit (INFERRED). The earlier "only model the endpoint serves" claim was
   replaced: the repo owner confirmed `gpt-6-luna` as the Decisions model on 2026-11-05, and every
@@ -1227,3 +1373,43 @@ Not fixed, recorded here:
 - The protocol hash covers source bytes, so formatting-only edits change it. After formatting
   `runner.py`, no run directory matches the current hash (only `decisions-full` did, and it is
   complete); resuming any of them needs a new output directory or a recorded re-pin.
+
+## Audit 2026-11-05: bootstrap order, rounding, protocol disclosure, and controls
+
+A second review traced `RESULTS.md` and `report/findings.html` to their first commits (`e709a02`,
+`67bad51`) and checked every quantitative claim against the ledgers. It confirmed that the scorer
+reproduces upstream LexGLUE and that every 7-task mean matches the ledgers, and found the
+following. Each is fixed in this commit; the new runs are in "Controls" above.
+
+| # | Where | Error | Fix |
+|---|---|---|---|
+| 1 | `src/jev_test/analysis.py` | Single-source intervals resampled records in ledger order, which is async completion order, with one generator shared across tasks in file order. Intervals depended on line order, and two models never resampled the same documents. | Records sorted by id, a fresh generator per task (as `paired` already did). Shuffling a ledger now leaves the output byte-identical (`tests/test_analysis.py`). Every single-source interval was regenerated (`scripts/regenerate_analysis.sh`); point estimates match the old files to 1e-12, paired results and all seven paired ROC-AUC files are unchanged (byte-identical), and interval ends move by at most 0.3 points (2.0 on the 50-per-task smoke comparison). Macro-F1 intervals are now computed. |
+| 2 | `clef_bench/train_probe.py` | Same ordering bug. The difference-in-differences subtracted two models' draws position by position, which matched the same query at only 78 of 1,000 BANKING77 training positions, so the "paired" DiD was in effect unpaired. Test draws used seed 1, not the intent sections' seed 0. | Sorted by id, with draws shared across models (train seed 1, test seed 0). Test intervals now equal the intent sections'. BANKING77 DiD +4.0 [+1.2, +6.9] (was [+1.0, +7.2]), same reading. |
+| 3 | RESULTS opening table | 300-resample intervals from an uncommitted run, including macro-F1 intervals no script produced. | Regenerated from `analysis/full-test.json` (1,000 resamples). |
+| 4 | RESULTS, `report.py`, `kev_suites/summarize.py`, `build_report.py` | Values rounded twice (`.2f` in `report.md`, then to one decimal by hand) or by binary float (`f"{0.8425:.3f}"` → 0.843 vs `round(84.25, 1)` → 84.2), so the same number showed differently in RESULTS and the report. | One rule everywhere (`jev_test.fmt`): round once, half to even, from the shortest decimal form. Changed cells: Jev ECtHR A m-F1 71.4 → 71.3 (four places); Kev-4B ECtHR A m-F1 60.5 → 60.4 and SCOTUS 57.7 → 57.6; Luna LEDGAR μ-F1 74.7 → 74.6 (0.7465 exactly); elephant-1 LEDGAR 76.1 → 76.0 and Jev − elephant-1 EUR-LEX lower end −2.1 → −2.0; elephant-1 `decision-v7 test` 0.843 → 0.842 and −0.007 → −0.008; Kev-suite per-source accuracies on n = 80 that land on exact halves (for example MMLU 0.863 → 0.862). In the report data only Luna LEDGAR changed. Also a transcription error: Jev CLINC150+OOS macro-F1 interval [88.3, 89.8] in the Decision Index table, [88.2, 89.8] in its source file. |
+| 5 | RESULTS text | elephant-1 macro-F1 bullet paired elephant − Jev points with Jev − elephant intervals; "13 to 29 points" behind BERT omitted Jev's EUR-LEX −32.5; inter-model κ floor "0.38" was Luna's, Jev's is 0.32; "4 of 7" per-label-tuned wins counted ECtHR B by borrowing the per-task interval; "30.7" for 97.4 − 66.8. | Corrected in place (also README). |
+| 6 | RESULTS, README, report | `chat` was described as asking "the same questions"; on multi-label tasks it sends one select-all question over bare options, not System One's per-label yes/no questions with criteria. | Disclosed in all three. Control run `chat-perlabel` added: the difference accounts for Luna's EUR-LEX lead, not its ECtHR or UNFAIR-ToS leads. |
+| 7 | Decisions section | Refusal imputation checked on UNFAIR-ToS F1 only, reported as Decisions − Jev with the bootstrap mean as point estimate. | `analysis/decisions_refusal_sensitivity.py`: both tasks with refusals, three treatments (p = 0, rows dropped, p = 1), F1, ROC-AUC, ECE, Brier. Replaces `decisions_unfair_sensitivity.py`. |
+| 8 | All comparisons | About 100 unadjusted intervals, several barely clear of zero, each read as a finding. | `analysis/multiplicity.py`: Holm across the 98 distinct full-test paired comparisons, on a normal approximation from each paired bootstrap (single-label McNemar agrees in all 50 cases). 87 intervals exclude zero; 79 survive. The 8 that do not are named where they are claimed: Jev − BERT ECtHR A, Jev − Luna LEDGAR and UNFAIR-ToS, Jev − Clef-flash SCOTUS, Jev − elephant-1 LEDGAR, Jev − LLM2Jev UNFAIR-ToS, Jev − Decisions ECtHR A, Luna − Decisions LEDGAR. Holm is checked against a brute-force implementation on 5,000 random families. |
+| 9 | Report | Tooltip called `transfer-v4 test` "Luna higher" where RESULTS says borderline; Clef-flash exposure worded four ways; ECtHR B "tie" in the report vs "win" in RESULTS. | Tooltips flag interval ends within 0.5 of zero as borderline; one exposure wording ("meets the pre-registered criterion; near-ceiling accuracy leaves it open"); RESULTS now says tie. |
+| 10 | README table | Tuned Jev listed beside untuned models with no caveat; cost column mixes request spend, a computed Decisions figure, whole-session GPU billing and BERT training. | Footnotes ² and ³. |
+| 11 | 2026-11-04 audit rows 1 and 2 | Dated the pre-rounded mean and hard-coded commit stamp to `5d11864`; both existed since `67bad51`. | Rows corrected above. |
+| 12 | `clef_bench/PREREG-train-probe.md` | The rule does not define the cell CLINC150 fell into (Jev's gap covers zero, Clef-flash's excludes it, DiD covers zero). | Pre-registration left as written; the CLINC150 reading is marked post hoc. |
+| 13 | Every model | One run each; intervals cover document sampling only. | Redraw controls for Jev and Luna (μ-F1 within ±0.6). Jev is not deterministic for identical requests. |
+| 14 | Jev vs BERT | Jev reads about 12k tokens, BERT 512 or 64 × 128. | Jev rerun at exactly BERT's input: SCOTUS lead holds, ECtHR A lead does not. |
+
+Also new: `scripts/regenerate_analysis.sh` rebuilds every ledger-derived file in `analysis/` (the
+mapping from file to ledgers was previously only in commit messages and three `analyze.sh`
+scripts); bootstrap F1 now uses `ResampleScorer`, which computes sklearn 1.9's F1 from counts
+and equals `metrics.score` exactly (tested on all seven tasks; regenerated files byte-identical
+to the sklearn path), cutting `analysis/full-test.json` from about 5 minutes to 54 s
+(peak RSS 0.7 GB).
+
+Not fixed, recorded here:
+
+- Luna's chat requests send no `temperature`, `top_p` or `seed`; the redraw measures the
+  resulting spread on four tasks but does not remove it.
+- The context control covers Jev only. LEDGAR, UNFAIR-ToS and CaseHOLD were not rerun at BERT's
+  context (98% of characters kept).
+- Bootstrap intervals are not family-wise; the Holm column is a separate, approximate check.
+- The Decisions and elephant-1 runs still have no pre-registration (see the 2026-11-04 audit).

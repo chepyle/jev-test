@@ -59,11 +59,13 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--dry-run", action="store_true", help="Write requests without API calls")
     run.add_argument(
         "--protocol",
-        choices=("systemone", "chat", "decisions"),
+        choices=("systemone", "chat", "chat-perlabel", "decisions"),
         default="systemone",
         help="systemone: typed decisions (TypeSafe models only). "
         "chat: JSON-schema chat completions, for models System One does not serve; "
         "multi-label answers have no probabilities, so --threshold does not apply. "
+        "chat-perlabel: chat with System One's per-label question and criteria "
+        "(multi-label tasks only; the prompt control for chat). "
         "decisions: OpenAI POST /v1/decisions (gpt-6-luna), key from OPENAI_API_KEY.",
     )
     report = commands.add_parser(

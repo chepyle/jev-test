@@ -1,0 +1,51 @@
+{
+  "ecthr_a": {
+    "n": 1000,
+    "mean_original_chars": 11711.392,
+    "mean_kept_chars": 8293.098,
+    "kept_fraction_of_chars": 0.7081223137266689,
+    "documents_shortened": 835
+  },
+  "ecthr_b": {
+    "n": 1000,
+    "mean_original_chars": 11711.392,
+    "mean_kept_chars": 8293.098,
+    "kept_fraction_of_chars": 0.7081223137266689,
+    "documents_shortened": 835
+  },
+  "scotus": {
+    "n": 1400,
+    "mean_original_chars": 54354.33571428571,
+    "mean_kept_chars": 17632.695,
+    "kept_fraction_of_chars": 0.32440273196762986,
+    "documents_shortened": 1399
+  },
+  "eurlex": {
+    "n": 5000,
+    "mean_original_chars": 11876.4012,
+    "mean_kept_chars": 2228.3164,
+    "kept_fraction_of_chars": 0.1876255578162853,
+    "documents_shortened": 3253
+  },
+  "ledgar": {
+    "n": 10000,
+    "mean_original_chars": 669.89,
+    "mean_kept_chars": 658.1129,
+    "kept_fraction_of_chars": 0.9824193524309961,
+    "documents_shortened": 175
+  },
+  "unfair_tos": {
+    "n": 1607,
+    "mean_original_chars": 179.59738643434972,
+    "mean_kept_chars": 176.7417548226509,
+    "kept_fraction_of_chars": 0.9840998153236341,
+    "documents_shortened": 20
+  },
+  "case_hold": {
+    "n": 3600,
+    "mean_original_chars": 843.5372222222222,
+    "mean_kept_chars": 830.6138888888889,
+    "kept_fraction_of_chars": 0.984679593273563,
+    "documents_shortened": 742
+  }
+}

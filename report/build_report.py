@@ -12,6 +12,7 @@ import json
 import subprocess
 from pathlib import Path
 
+from jev_test.fmt import pct, rnd
 from jev_test.tasks import TASK_NAMES, get_task
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -41,10 +42,6 @@ COMMIT = subprocess.run(
 
 def load(path: str) -> dict:
     return json.loads((ROOT / path).read_text())
-
-
-def pct(x: float) -> float:
-    return round(x * 100, 1)
 
 
 def ledger(path: str) -> dict[str, dict]:
@@ -115,9 +112,9 @@ def build() -> dict:
             "micro": pct(k["metrics"]["micro_f1"]),
             "macro": pct(k["metrics"]["macro_f1"]),
             "ci": [pct(x) for x in k["ci95"]["micro_f1"]],
-            "ece": round(k["metrics"]["ece"], 3),
+            "ece": rnd(k["metrics"]["ece"], 3),
         }
-        row["jev"]["ece"] = round(src["jev"][t]["metrics"]["ece"], 3)
+        row["jev"]["ece"] = rnd(src["jev"][t]["metrics"]["ece"], 3)
         vs_kev = kev["paired"]["jev_vs_kev4b"][t]
         row["delta_kev"] = {
             "d": pct(vs_kev["delta_micro_f1"]),
@@ -129,15 +126,15 @@ def build() -> dict:
         if t in kev_auc:
             a = kev_auc[t]
             row["auc_kev"] = {
-                "d": round(a["delta"], 3),
-                "ci": [round(x, 3) for x in a["delta_ci95"]],
+                "d": rnd(a["delta"], 3),
+                "ci": [rnd(x, 3) for x in a["delta_ci95"]],
             }
         m = l2j["sources"]["llm2jev"][t]["metrics"]
         row["llm2jev"] = {
             "micro": pct(m["micro_f1"]),
             "macro": pct(m["macro_f1"]),
             "ci": [pct(x) for x in l2j["sources"]["llm2jev"][t]["ci95"]["micro_f1"]],
-            "ece": round(m["ece"], 3),
+            "ece": rnd(m["ece"], 3),
             **(
                 {"conf": pct(m["mean_confidence"]), "acc": pct(m["accuracy"])}
                 if "accuracy" in m
@@ -154,7 +151,7 @@ def build() -> dict:
             "micro": pct(m["micro_f1"]),
             "macro": pct(m["macro_f1"]),
             "ci": [pct(x) for x in cf["sources"]["clef_flash"][t]["ci95"]["micro_f1"]],
-            "ece": round(m["ece"], 3),
+            "ece": rnd(m["ece"], 3),
             **(
                 {"conf": pct(m["mean_confidence"]), "acc": pct(m["accuracy"])}
                 if "accuracy" in m
@@ -169,15 +166,15 @@ def build() -> dict:
         if t in cf_auc:
             a = cf_auc[t]
             row["auc_cf"] = {
-                "d": round(a["delta"], 3),
-                "ci": [round(x, 3) for x in a["delta_ci95"]],
+                "d": rnd(a["delta"], 3),
+                "ci": [rnd(x, 3) for x in a["delta_ci95"]],
             }
         m = el["sources"]["elephant"][t]["metrics"]
         row["elephant"] = {
             "micro": pct(m["micro_f1"]),
             "macro": pct(m["macro_f1"]),
             "ci": [pct(x) for x in el["sources"]["elephant"][t]["ci95"]["micro_f1"]],
-            "ece": round(m["ece"], 3),
+            "ece": rnd(m["ece"], 3),
         }
         for key, pair in (("jev", el["paired"]["jev_vs_elephant"][t]), ("kev", el_kev[t])):
             row[f"el_{key}"] = {
@@ -187,15 +184,15 @@ def build() -> dict:
         if t in el_auc:
             a = el_auc[t]
             row["auc_el"] = {
-                "d": round(a["delta"], 3),
-                "ci": [round(x, 3) for x in a["delta_ci95"]],
+                "d": rnd(a["delta"], 3),
+                "ci": [rnd(x, 3) for x in a["delta_ci95"]],
             }
         m = dec["sources"]["decisions"][t]["metrics"]
         row["decisions"] = {
             "micro": pct(m["micro_f1"]),
             "macro": pct(m["macro_f1"]),
             "ci": [pct(x) for x in dec["sources"]["decisions"][t]["ci95"]["micro_f1"]],
-            "ece": round(m["ece"], 3),
+            "ece": rnd(m["ece"], 3),
             "n": dec["sources"]["decisions"][t]["n"],
         }
         # Deltas are other model minus Decisions (analysis pairs a = other, b = Decisions).
@@ -238,7 +235,7 @@ def build() -> dict:
 
     def mean(key: str, metric: str) -> float:
         values = [unrounded(key, t)[f"{metric}_f1"] for t in TASK_NAMES]
-        return round(100 * sum(values) / len(values), 1)
+        return pct(sum(values) / len(values))
 
     means = {
         k: {"micro": mean(k, "micro"), "macro": mean(k, "macro")}
@@ -286,7 +283,7 @@ def build() -> dict:
     ][:3]
 
     def cost(path: str) -> float:
-        return round(load(path)["usage"]["reported_cost_usd"], 2)
+        return rnd(load(path)["usage"]["reported_cost_usd"], 2)
 
     b77, clinc = intents["banking77"], intents["clinc150"]
     kev_intents = load("analysis/intents-jev-vs-kev4b.json")
@@ -303,7 +300,7 @@ def build() -> dict:
                 "held_out": suite == "transfer-v4",
                 "n": e["n_questions"],
                 "acc": {
-                    m: round(e["models"][m]["acc"] * 100, 1)
+                    m: pct(e["models"][m]["acc"])
                     for m in (
                         "jev",
                         "luna",
@@ -316,7 +313,7 @@ def build() -> dict:
                     )
                 },
                 "acc_ci": {
-                    m: [round(x * 100, 1) for x in e["models"][m]["acc_ci"]]
+                    m: [pct(x) for x in e["models"][m]["acc_ci"]]
                     for m in (
                         "kev4b",
                         "llm2jev",
@@ -327,38 +324,38 @@ def build() -> dict:
                     )
                 },
                 "ece": {
-                    m: round(e["models"][m]["ece"], 3)
+                    m: rnd(e["models"][m]["ece"], 3)
                     for m in ("jev", "kev4b", "llm2jev", "clef-flash", "elephant", "mbl-s1")
                 },
                 **{
                     f"cf_{short}": {
-                        "d": round(e[f"{m}_minus_clef-flash"]["acc"] * 100, 1),
-                        "ci": [round(x * 100, 1) for x in e[f"{m}_minus_clef-flash"]["ci"]],
+                        "d": pct(e[f"{m}_minus_clef-flash"]["acc"]),
+                        "ci": [pct(x) for x in e[f"{m}_minus_clef-flash"]["ci"]],
                     }
                     for short, m in (("jev", "jev"), ("kev", "kev4b"))
                 },
                 **{
                     f"el_{short}": {
-                        "d": round(e[f"{m}_minus_elephant"]["acc"] * 100, 1),
-                        "ci": [round(x * 100, 1) for x in e[f"{m}_minus_elephant"]["ci"]],
+                        "d": pct(e[f"{m}_minus_elephant"]["acc"]),
+                        "ci": [pct(x) for x in e[f"{m}_minus_elephant"]["ci"]],
                     }
                     for short, m in (("jev", "jev"), ("kev", "kev4b"))
                 },
                 **{
                     f"l2j_{short}": {
-                        "d": round(e[f"{m}_minus_llm2jev"]["acc"] * 100, 1),
-                        "ci": [round(x * 100, 1) for x in e[f"{m}_minus_llm2jev"]["ci"]],
+                        "d": pct(e[f"{m}_minus_llm2jev"]["acc"]),
+                        "ci": [pct(x) for x in e[f"{m}_minus_llm2jev"]["ci"]],
                     }
                     for short, m in (("jev", "jev"), ("kev", "kev4b"))
                 },
                 "kev_minus_encoder": {
-                    "d": round(e["kev4b_minus_mbl-s1"]["acc"] * 100, 1),
-                    "ci": [round(x * 100, 1) for x in e["kev4b_minus_mbl-s1"]["ci"]],
+                    "d": pct(e["kev4b_minus_mbl-s1"]["acc"]),
+                    "ci": [pct(x) for x in e["kev4b_minus_mbl-s1"]["ci"]],
                 },
                 **{
                     f"vs_{m}": {
-                        "d": round(e[f"jev_minus_{m}"]["acc"] * 100, 1),
-                        "ci": [round(x * 100, 1) for x in e[f"jev_minus_{m}"]["ci"]],
+                        "d": pct(e[f"jev_minus_{m}"]["acc"]),
+                        "ci": [pct(x) for x in e[f"jev_minus_{m}"]["ci"]],
                     }
                     for m in ("luna", "kev4b")
                 },
@@ -369,7 +366,7 @@ def build() -> dict:
         "intents": {
             "banking77": {
                 "acc": pct(kb77["metrics"]["accuracy"]),
-                "ece": round(kb77["metrics"]["ece"], 3),
+                "ece": rnd(kb77["metrics"]["ece"], 3),
                 "conf": pct(kb77["metrics"]["mean_confidence"]),
                 "d": pct(kev_pairs["banking77"]["delta_micro_f1"]),
                 "ci": [pct(x) for x in kev_pairs["banking77"]["delta_micro_f1_ci95"]],
@@ -378,7 +375,7 @@ def build() -> dict:
                 "acc": pct(kclinc["metrics"]["accuracy"]),
                 "in_scope": pct(kclinc["metrics"]["in_scope_accuracy"]),
                 "oos_recall": pct(kclinc["metrics"]["oos_recall"]),
-                "ece": round(kclinc["metrics"]["ece"], 3),
+                "ece": rnd(kclinc["metrics"]["ece"], 3),
                 "conf": pct(kclinc["metrics"]["mean_confidence"]),
                 "d": pct(kev_pairs["clinc150"]["delta_micro_f1"]),
                 "ci": [pct(x) for x in kev_pairs["clinc150"]["delta_micro_f1_ci95"]],
@@ -414,9 +411,11 @@ def build() -> dict:
         "clef_flash": clef_block(intent_ledger),
         "elephant": elephant_block(),
         "decisions": decisions_block(),
+        "controls": controls_block(),
+        "multiplicity": multiplicity_block(),
         "encoder": {
             "config": load("results/kev-encoder/mbl-s1/config.json"),
-            "temperature": round(
+            "temperature": rnd(
                 load("results/kev-encoder/mbl-s1/temperature.json")["temperature"], 2
             ),
         },
@@ -431,7 +430,7 @@ def build() -> dict:
                 "n": b77["n"],
                 "acc": pct(b77["metrics"]["accuracy"]),
                 "ci": [pct(x) for x in b77["ci95"]["micro_f1"]],
-                "ece": round(b77["metrics"]["ece"], 3),
+                "ece": rnd(b77["metrics"]["ece"], 3),
                 **PUBLISHED["banking77"],
             },
             "clinc150": {
@@ -442,7 +441,7 @@ def build() -> dict:
                 "oos_ci": [pct(x) for x in clinc["ci95"]["oos_recall"]],
                 "oos_precision": pct(clinc["metrics"]["oos_precision"]),
                 "acc": pct(clinc["metrics"]["accuracy"]),
-                "ece": round(clinc["metrics"]["ece"], 3),
+                "ece": rnd(clinc["metrics"]["ece"], 3),
                 **PUBLISHED["clinc150"],
             },
         },
@@ -460,7 +459,7 @@ def llm2jev_block() -> dict:
         intents[t] = {
             "acc": pct(m["accuracy"]),
             "ci": [pct(x) for x in src["ci95"]["micro_f1"]],
-            "ece": round(m["ece"], 3),
+            "ece": rnd(m["ece"], 3),
             "conf": pct(m["mean_confidence"]),
             "top3": pct(m["top3_accuracy"]),
             **({"oos_recall": pct(m["oos_recall"])} if "oos_recall" in m else {}),
@@ -492,7 +491,7 @@ def clef_block(jev_intents: dict) -> dict:
         intents[t] = {
             "acc": pct(m["accuracy"]),
             "ci": [pct(x) for x in src["ci95"]["micro_f1"]],
-            "ece": round(m["ece"], 3),
+            "ece": rnd(m["ece"], 3),
             "conf": pct(m["mean_confidence"]),
             "macro_f1": pct(index[t]["macro_f1"]),
             "macro_f1_ci": [pct(x) for x in index[t]["macro_f1_ci95"]],
@@ -570,7 +569,7 @@ def elephant_block() -> dict:
         intents[t] = {
             "acc": pct(m["accuracy"]),
             "ci": [pct(x) for x in src["ci95"]["micro_f1"]],
-            "ece": round(m["ece"], 3),
+            "ece": rnd(m["ece"], 3),
             "conf": pct(m["mean_confidence"]),
             "macro_f1": pct(index[t]["macro_f1"]),
             "macro_f1_ci": [pct(x) for x in index[t]["macro_f1_ci95"]],
@@ -603,12 +602,12 @@ def decisions_cost() -> float:
     tokens = sum(
         r["response"]["usage"]["input_tokens"] for r in decisions_ledger() if "response" in r
     )
-    return round(tokens * 0.10 / 1e6, 2)
+    return rnd(tokens * 0.10 / 1e6, 2)
 
 
 def decisions_block() -> dict:
     """Refusal counts and run totals for the OpenAI Decisions API run."""
-    sens = load("analysis/decisions-unfair-sensitivity.json")
+    sens = load("analysis/decisions-refusal-sensitivity.json")["tasks"]["unfair_tos"]
     last = {r["id"]: r for r in decisions_ledger()}
     ok = [r for r in last.values() if r["status"] == "ok"]
     refused = collections.Counter()
@@ -627,11 +626,84 @@ def decisions_block() -> dict:
         "refused_rows": sum(refused_rows.values()),
         "refused_rows_unfair": refused_rows["unfair_tos"],
         "unfair_rows": sum(1 for r in last.values() if r["task"] == "unfair_tos"),
-        "input_tokens_m": round(tokens / 1e6, 1),
+        "input_tokens_m": rnd(tokens / 1e6, 1),
+        # Decisions' lead over Jev (= −(Jev − Decisions)) with refused rows dropped, and under
+        # the opposite bound (every refused label applied).
         "unfair_sensitivity": {
-            "d": pct(sens["delta_decisions_minus_jev_kept"]),
-            "ci": [pct(x) for x in sens["delta_ci95"]],
+            "d": pct(-sens["drop_rows"]["jev_minus_decisions"]["micro_f1"]),
+            "ci": [
+                pct(-x) for x in sens["drop_rows"]["jev_minus_decisions"]["micro_f1_ci95"][::-1]
+            ],
+            "applied_d": pct(-sens["impute_1"]["jev_minus_decisions"]["micro_f1"]),
+            "applied_ci": [
+                pct(-x) for x in sens["impute_1"]["jev_minus_decisions"]["micro_f1_ci95"][::-1]
+            ],
         },
+    }
+
+
+def controls_block() -> dict:
+    """Redraw, context and prompt controls (analysis/PREREG-controls.md), paired μ-F1 in points."""
+
+    def pair(path: str, key: str) -> dict:
+        out = {}
+        for task, v in load(path)["paired"][key].items():
+            out[task] = {
+                "n": v["n"],
+                "d": pct(v["delta_micro_f1"]),
+                "ci": [pct(x) for x in v["delta_micro_f1_ci95"]],
+                "dm": pct(v["delta_macro_f1"]),
+                "cim": [pct(x) for x in v["delta_macro_f1_ci95"]],
+            }
+        return out
+
+    ctx = "analysis/control-jev-context.json"
+    arms = "analysis/control-jev-vs-luna-arms.json"
+    return {
+        "jev_redraw": pair("analysis/control-jev-redraw.json", "jev_redraw_vs_jev"),
+        "jev_context": pair(ctx, "jev_bertctx_vs_jev_redraw"),
+        "jev_context_vs_bert": pair(ctx, "jev_bertctx_vs_bert"),
+        "luna_redraw": pair("analysis/control-luna-redraw.json", "luna_redraw_vs_luna"),
+        "luna_prompt": pair("analysis/control-luna-prompt.json", "luna_perlabel_vs_luna_redraw"),
+        "jev_vs_luna_redraw": pair(arms, "jev_vs_luna_redraw"),
+        "jev_vs_luna_perlabel": pair(arms, "jev_vs_luna_perlabel"),
+        "context_kept": {
+            t: pct(v["kept_fraction_of_chars"])
+            for t, v in json.loads((ROOT / "analysis" / "bertctx-context.json").read_text()).items()
+        },
+    }
+
+
+MODEL_NAMES = {
+    "jev": "Jev",
+    "bert": "BERT",
+    "luna": "Luna",
+    "luna-chat": "Luna",
+    "kev4b": "Kev-4B",
+    "llm2jev": "LLM2Jev",
+    "clef_flash": "Clef-flash",
+    "elephant": "elephant-1",
+    "decisions": "Decisions",
+}
+
+
+def multiplicity_block() -> dict:
+    m = load("analysis/multiplicity.json")
+    return {
+        "family": m["family_size"],
+        "ci_excludes_zero": m["ci_excludes_zero"],
+        "holm_rejects": m["holm_p_boot_rejects"],
+        "lost": [
+            {
+                "a": MODEL_NAMES[r["a"]],
+                "b": MODEL_NAMES[r["b"]],
+                "task": r["task"],
+                "label": TASK_LABELS.get(r["task"], r["task"]),
+                "d": pct(r["delta_micro_f1"]),
+                "p": rnd(r["holm_p_boot"], 3),
+            }
+            for r in m["ci_excludes_zero_but_not_holm"]
+        ],
     }
 
 

@@ -21,10 +21,10 @@ below; `report/findings.html` collects the comparison.
 
 Full test split (23,607 examples), zero-shot, micro-F1 arithmetic mean across the 7 tasks:
 
-| Model | Protocol | μ-F1 | m-F1 | Cost |
+| Model | Protocol | μ-F1 | m-F1 | Cost³ |
 |---|---|---:|---:|---:|
 | Jev (`typesafe/jev-1.13-20260917`) | System One | 69.9 | 62.6 | $4.02 |
-| Jev, per-label thresholds tuned on validation | System One | 74.2 | 66.3 | +$2.47 |
+| Jev, per-label thresholds tuned on validation² | System One | 74.2 | 66.3 | +$2.47 |
 | GPT-5.6 Luna (`openai/gpt-5.6-luna`) | chat, JSON schema | 71.3 | 63.9 | $16.45 |
 | Kev-4B (`jaredpalmer/kev-4b`, open weights, self-served) | System One | 62.1 | 55.5 | ≤ $8.01 GPU |
 | LLM2Jev on Qwen3.5-4B (prompted, no training, self-served) | System One | 62.2 | 53.8 | ≤ $28.84 GPU |
@@ -37,7 +37,7 @@ Jev and Luna are close: Luna is ahead on ECtHR A/B, EUR-LEX, and UNFAIR-ToS, Jev
 LEDGAR, and CaseHOLD is a tie. Kev-4B, an open-weight 4B model that serves the same API, trails
 Jev on all seven tasks (1.9 to 13.3 μ-F1, every paired interval above zero); on Kev's own
 held-out suite Jev also leads it by 3.8 points, while Kev-4B leads on its training sources. Jev and Luna both beat fine-tuned BERT on CaseHOLD and trail it
-by 13 to 29 points on EUR-LEX, LEDGAR, and UNFAIR-ToS. Choosing Jev's per-label thresholds on the
+by 12.7 to 32.5 points on EUR-LEX, LEDGAR, and UNFAIR-ToS (Luna 13.3 to 28.6, Jev 12.7 to 32.5). Choosing Jev's per-label thresholds on the
 validation split (no test data, no training examples) cuts its gap to BERT from 7.5 to 3.2 μ-F1.
 Outside law, Jev trails published fine-tuned BERT on fine-grained intents (BANKING77 80.6 vs
 93.7 accuracy; CLINC150 in-scope 89.0 vs 96.7) but finds out-of-scope requests far better
@@ -46,21 +46,42 @@ with no training, ties Kev-4B on the LexGLUE mean with opposite task profiles (S
 ECtHR A −10.1) and trails it by 7 to 11 points on all four Kev splits, most on rule
 application. Cloudflare's Clef-flash (Qwen3.5-9B with a trained schema head) lands between Jev
 and Kev-4B on LexGLUE (68.3), ties Kev-4B on Kev's suites, and scores 95.8 BANKING77 accuracy and
-98.9 CLINC150 in-scope accuracy, above published fine-tuned BERT (93.66, 96.7); a pre-registered training-split probe could
-not rule out that it trained on those datasets. Base Labs' elephant-1 (Qwen3.5-9B post-trained
+98.9 CLINC150 in-scope accuracy, above published fine-tuned BERT (93.66, 96.7); on BANKING77 a pre-registered training-split
+probe meets its criterion for exposure, though Clef-flash's near-ceiling accuracy leaves that open. Base Labs' elephant-1 (Qwen3.5-9B post-trained
 as a decision model) averages 71.5 μ-F1 on LexGLUE, 1.6 above Jev as a point estimate (ahead on
 CaseHOLD +8.1, ECtHR B +4.8, behind on UNFAIR-ToS −3.2), beats Kev-4B on all seven tasks, scores
 92.4 BANKING77 accuracy (below Clef-flash and published fine-tuned BERT) and 97.0 [96.5, 97.5]
 CLINC150 in-scope accuracy (level with published BERT's 96.7), and is within 3 points of Jev and
 Kev-4B on all four Kev splits. OpenAI's Decisions endpoint (`gpt-6-luna`, LexGLUE only) averages
 70.5 μ-F1; paired against Jev it leads on ECtHR A, ECtHR B and UNFAIR-ToS and trails on SCOTUS,
-EUR-LEX, LEDGAR and CaseHOLD, every interval clear of zero. [`RESULTS.md`](RESULTS.md) has per-task
+EUR-LEX, LEDGAR and CaseHOLD, every interval clear of zero (ECtHR A does not survive a Holm
+correction across the 98 paired comparisons, `analysis/multiplicity.json`). [`RESULTS.md`](RESULTS.md) has per-task
 intervals, kappa, calibration, paired tests, and caveats, including the protocol difference.
+
+Pre-registered controls (`analysis/PREREG-controls.md`, same documents, paired): a second run moves
+Jev and Luna by at most 0.6 μ-F1 per task (Jev is not deterministic for identical requests, but
+the spread is small); cut to exactly the text fine-tuned BERT reads, Jev still beats BERT on
+SCOTUS (+4.6 [+1.7, +7.4]) but no longer on ECtHR A (+2.1 [−0.1, +4.3]); asked Jev's per-label
+questions instead of one select-all question, Luna keeps its ECtHR A, ECtHR B and UNFAIR-ToS
+leads, and its EUR-LEX lead goes to −0.8 [−1.9, +0.4]. Across the 98 paired full-test comparisons,
+8 intervals that exclude zero do not survive a Holm correction (`analysis/multiplicity.json`),
+including Jev over BERT on ECtHR A and Jev over Luna on LEDGAR.
 
 ¹ The Decisions API refused two LEDGAR `choice` questions (ledgar/3100, ledgar/9064); they are
 excluded from its LEDGAR score. Counting them wrong gives 73.76 instead of 73.77 and leaves the
 mean at 70.5. Its multi-label requests omit the true/false criterion sentences that the System One
 rows send; see `RESULTS.md`.
+
+² Only this row is tuned: 8 to 100 thresholds per task fitted on the validation split. BERT keeps
+upstream's fixed 0.5, chat Luna returns label sets with no probabilities to tune, and every other
+row is at 0.5. Compare tuned Jev with the untuned rows as an upper bound for threshold choice, not
+as a like-for-like model comparison.
+
+³ The cost column mixes bases: Jev and Luna are OpenRouter-reported request spend; Decisions is
+computed from input tokens at $0.10 per 1M uncached (no cost field in the response; cache
+discounts not tracked); "≤ … GPU" rows are whole-session Modal billing for serving that model,
+including smoke runs, checks, probes and idle scale-down; BERT is single-seed fine-tuning on
+Modal. Read them as orders of magnitude, not per-request prices.
 
 ## Quick start
 
@@ -186,10 +207,16 @@ uv run jev-bench run --data data/full-test --output results/luna-full \
   --model openai/gpt-5.6-luna --protocol chat --concurrency 12
 ```
 
-`--protocol chat` asks the same questions (instructions, label descriptions, truncation) over
+`--protocol chat` sends the same task instructions, label descriptions and truncation over
 `/chat/completions` with a strict JSON schema. The answer is generated text parsed as JSON;
 multi-label tasks return a label set, so there are no probabilities and `--threshold` does not
 apply. Refusals and malformed answers are recorded as errors, never as default predictions.
+The multi-label question is not the same as System One's: `chat` appends "Select every option
+that applies, or none." and lists bare numbered options, while System One asks one yes/no
+question per label ("Does this label apply: …?") with true/false criterion sentences.
+`--protocol chat-perlabel` asks System One's per-label questions and criteria over chat (one
+boolean per label in the schema); it is the control for that difference (multi-label tasks
+only; results in `RESULTS.md`).
 
 ### OpenAI Decisions API
 
@@ -220,6 +247,46 @@ Adds Cohen's kappa (per label for multi-label tasks), MCC, precision/recall, top
 ROC-AUC, calibration (ECE, Brier), length/truncation breakdowns, and bootstrap intervals.
 Repeat `--source NAME=PATH` to compare prediction ledgers on shared examples: inter-model
 kappa, McNemar exact test, and paired bootstrap F1 differences. See `RESULTS.md`.
+
+Bootstrap draws depend only on the records: ledgers are sorted by example id (they are written
+in async completion order) and each task gets a fresh generator, so two models scored on the
+same examples resample the same items. Every derived file in `analysis/` is rebuilt from the
+ledgers by one script (no network; `RESUME=1` skips outputs already written):
+
+```bash
+scripts/regenerate_analysis.sh                   # analyze + paired ROC-AUC files
+uv run python clef_bench/train_probe.py score > analysis/clef-flash-train-probe.json
+uv run python analysis/decisions_refusal_sensitivity.py > analysis/decisions-refusal-sensitivity.json
+uv run python analysis/multiplicity.py > analysis/multiplicity.json   # Holm across comparisons
+uv run python kev_suites/summarize.py > analysis/kev-suites.md
+scripts/control_analyses.sh                      # redraw, context and prompt controls
+uv run python report/build_report.py
+```
+
+Numbers shown in tables are rounded once, half to even, from the shortest decimal form of the
+raw value (`jev_test.fmt`), in `report.md`, the Kev-suite tables and the HTML report alike.
+
+### Controls
+
+Pre-registered in `analysis/PREREG-controls.md`; results in `RESULTS.md`.
+
+```bash
+# Jev on the text fine-tuned BERT reads (upstream LexGLUE limits, bert-base-uncased tokens)
+uv run --with tokenizers python bert/context_matched.py data/full-test data/full-test-bertctx
+uv run python scripts/prepare_control_subset.py data/full-test data/control-full \
+  ecthr_a ecthr_b scotus unfair_tos eurlex:500
+uv run python scripts/prepare_control_subset.py data/full-test-bertctx data/control-bertctx \
+  ecthr_a ecthr_b scotus eurlex:500
+uv run python scripts/prepare_control_subset.py data/full-test data/multilabel-control \
+  ecthr_a ecthr_b unfair_tos eurlex:500
+uv run jev-bench run --data data/control-full --output results/jev-redraw --model typesafe/jev-1.13
+uv run jev-bench run --data data/control-bertctx --output results/jev-bertctx \
+  --model typesafe/jev-1.13 --max-chars 0
+uv run jev-bench run --data data/multilabel-control --output results/luna-redraw \
+  --model openai/gpt-5.6-luna --protocol chat --concurrency 16
+uv run jev-bench run --data data/multilabel-control --output results/luna-perlabel \
+  --model openai/gpt-5.6-luna --protocol chat-perlabel --concurrency 16
+```
 
 ## Resume and failure recovery
 

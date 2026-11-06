@@ -89,3 +89,58 @@ def test_clinc_out_of_scope_metrics_follow_the_paper():
     assert metrics["in_scope_accuracy"] == pytest.approx(1 / 3)  # oos on in-scope counts wrong
     assert metrics["oos_recall"] == pytest.approx(1 / 2)
     assert metrics["oos_precision"] == pytest.approx(1 / 2)
+
+
+def test_intervals_do_not_depend_on_ledger_line_order(tmp_path, monkeypatch):
+    """Ledgers are written in async completion order; intervals must depend only on content."""
+    monkeypatch.setattr(analysis, "BOOTSTRAP", 50)
+    rng = np.random.default_rng(3)
+    rows = []
+    for task in ("ledgar", "unfair_tos"):
+        for index in range(30):
+            if task == "ledgar":
+                gold, pred = [int(rng.integers(3))], [int(rng.integers(3))]
+            else:
+                gold = sorted({int(x) for x in rng.integers(0, 8, rng.integers(0, 3))})
+                pred = sorted({int(x) for x in rng.integers(0, 8, rng.integers(0, 3))})
+            rows.append(
+                {
+                    "id": f"{task}/{index}",
+                    "task": task,
+                    "status": "ok",
+                    "gold": gold,
+                    "prediction": pred,
+                }
+            )
+    ordered, shuffled = tmp_path / "ordered.jsonl", tmp_path / "shuffled.jsonl"
+    ordered.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    permuted = [rows[i] for i in rng.permutation(len(rows))]
+    shuffled.write_text("".join(json.dumps(r) + "\n" for r in permuted))
+    a = analyze({"a": ordered})["sources"]["a"]
+    b = analyze({"a": shuffled})["sources"]["a"]
+    for task in ("ledgar", "unfair_tos"):
+        assert a[task]["ci95"] == b[task]["ci95"]
+        assert "macro_f1" in a[task]["ci95"]
+
+
+@pytest.mark.parametrize(
+    "task", ["ecthr_a", "eurlex", "unfair_tos", "scotus", "ledgar", "case_hold", "clinc150"]
+)
+def test_resample_scorer_equals_score_exactly(task):
+    from jev_test.analysis import ResampleScorer
+    from jev_test.metrics import score
+    from jev_test.tasks import get_task
+
+    t = get_task(task)
+    rng = np.random.default_rng(1)
+    n, width = 60, len(t.codes)
+    if t.multilabel:
+        draw = lambda: sorted({int(x) for x in rng.integers(0, width, rng.integers(0, 4))})  # noqa: E731
+    else:
+        draw = lambda: [int(rng.integers(0, min(width, 6)))]  # noqa: E731
+    gold, pred = [draw() for _ in range(n)], [draw() for _ in range(n)]
+    scorer = ResampleScorer(task, gold, pred)
+    for _ in range(200):
+        idx = rng.integers(0, n, n)
+        expected = score(task, [gold[i] for i in idx], [pred[i] for i in idx])
+        assert scorer(idx) == (expected["micro_f1"], expected["macro_f1"])

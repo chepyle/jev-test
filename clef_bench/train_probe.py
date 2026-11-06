@@ -36,6 +36,7 @@ TEST_LEDGERS = {
     "jev": "results/jev-intents-test/predictions.jsonl",
 }
 RESAMPLES = 1000
+TRAIN_SEED = 1
 
 
 def ledger(name: str) -> Path:
@@ -79,30 +80,43 @@ async def run(name: str) -> None:
     print(f"{name}: done", flush=True)
 
 
-def accuracy(path: str, rng_seed: int = 0) -> dict:
+def accuracy(path: str, seed: int) -> dict:
+    """Accuracy and its bootstrap draws per task, over records sorted by id.
+
+    Ledgers are in async completion order, so sorting is what makes two models' draws land
+    on the same queries (the difference-in-differences is paired by query). The draw loop
+    matches `jev_test.analysis.analyze_task`, so with seed 0 the test intervals equal those
+    in analysis/intents-*.json for the same ledger."""
     out = {}
     for task, records in load_source(Path(path)).items():
-        hits = np.array([r["prediction"] == r["gold"] for r in records.values()], dtype=float)
-        rng = np.random.default_rng(rng_seed)
-        samples = rng.integers(0, len(hits), (RESAMPLES, len(hits)))
-        out[task] = {"n": len(hits), "acc": float(hits.mean()), "boot": hits[samples].mean(1)}
+        ids = sorted(records)
+        hits = np.array([records[i]["prediction"] == records[i]["gold"] for i in ids], float)
+        rng = np.random.default_rng(seed)
+        samples = np.array([rng.integers(0, len(ids), len(ids)) for _ in range(RESAMPLES)])
+        out[task] = {"ids": ids, "acc": float(hits.mean()), "boot": hits[samples].mean(1)}
     return out
 
 
 def score() -> dict:
-    result = {"resamples": RESAMPLES, "seed": 0, "models": {}}
-    gaps = {}
+    """Train draws use seed 1 and test draws seed 0, so the two splits resample independently;
+    both models share each split's draws, which pairs them by query."""
+    result = {"resamples": RESAMPLES, "seed": {"train": TRAIN_SEED, "test": 0}, "models": {}}
+    gaps, ids = {}, {}
     for name in TARGETS:
-        train, test = accuracy(str(ledger(name))), accuracy(TEST_LEDGERS[name], rng_seed=1)
+        train = accuracy(str(ledger(name)), TRAIN_SEED)
+        test = accuracy(TEST_LEDGERS[name], 0)
         result["models"][name] = {}
         for task in ("banking77", "clinc150"):
+            ids.setdefault(task, (train[task]["ids"], test[task]["ids"]))
+            if (train[task]["ids"], test[task]["ids"]) != ids[task]:
+                raise ValueError(f"{name}/{task}: queries differ from the other model's")
             gap = train[task]["boot"] - test[task]["boot"]
             gaps[name, task] = gap
             result["models"][name][task] = {
-                "train_n": train[task]["n"],
+                "train_n": len(train[task]["ids"]),
                 "train_acc": train[task]["acc"],
                 "train_ci95": interval(train[task]["boot"]),
-                "test_n": test[task]["n"],
+                "test_n": len(test[task]["ids"]),
                 "test_acc": test[task]["acc"],
                 "test_ci95": interval(test[task]["boot"]),
                 "train_minus_test": train[task]["acc"] - test[task]["acc"],
